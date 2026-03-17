@@ -1,0 +1,32 @@
+{
+	"name": "@syncdown/cli",
+	"version": "0.1.0",
+	"license": "Apache-2.0",
+	"type": "module",
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"bin": {
+		"syncdown": "./src/bin.ts"
+	},
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsgo -p ./tsconfig.json --noEmit --pretty false",
+		"test": "bun test ./src/*.test.ts"
+	},
+	"files": [
+		"src"
+	],
+	"devDependencies": {
+		"@syncdown/connector-google-calendar": "workspace:*",
+		"@syncdown/connector-gmail": "workspace:*",
+		"@syncdown/connector-notion": "workspace:*",
+		"@syncdown/core": "workspace:*",
+		"@syncdown/renderer-md": "workspace:*",
+		"@syncdown/secrets": "workspace:*",
+		"@syncdown/sink-fs": "workspace:*",
+		"@syncdown/state-sqlite": "workspace:*",
+		"@syncdown/tui": "workspace:*"
+	}
+}

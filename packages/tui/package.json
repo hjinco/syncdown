@@ -1,0 +1,23 @@
+{
+	"name": "@syncdown/tui",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsgo -p ./tsconfig.json --noEmit --pretty false",
+		"test": "bun test ./src/*.test.ts"
+	},
+	"dependencies": {
+		"@opentui/core": "^0.1.87",
+		"@syncdown/connector-google-calendar": "workspace:*",
+		"@syncdown/connector-gmail": "workspace:*",
+		"@syncdown/connector-notion": "workspace:*",
+		"@syncdown/core": "workspace:*",
+		"googleapis": "^171.4.0"
+	}
+}

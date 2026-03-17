@@ -1,0 +1,87 @@
+---
+title: 存储
+description: 了解渲染后的 Markdown 结构以及受管理输出的行为。
+---
+
+# 存储
+
+## Markdown 路径布局
+
+渲染后的 Markdown 会写入配置好的输出目录下。
+
+Notion 页面：
+
+```text
+<outputDir>/notion/pages/<slug>-<source-id>.md
+```
+
+Notion 数据库条目：
+
+```text
+<outputDir>/notion/databases/<database-name>/<slug>-<source-id>.md
+```
+
+Gmail 邮件：
+
+```text
+<outputDir>/gmail/<account-email-slug>/<year>/<month>/<slug>-<message-id>.md
+```
+
+Google Calendar 事件：
+
+```text
+<outputDir>/google-calendar/<calendar-name>/<year>/<month>/<slug>-<calendar-id:event-id>.md
+```
+
+## 受管理的输出
+
+建议将输出树视为由 `syncdown` 管理的输出。
+
+通常不建议手动编辑、重命名、移动或重新整理其中生成的 Markdown 文件和 connector 目录。
+
+在后续同步或完整重同步过程中，这些文件和目录可能会被重新生成、覆盖或删除。
+
+如果你希望保留手写笔记或自定义目录结构，请将它们存放在受管理输出树之外，或存放在 `syncdown` 不负责管理的单独目录中。
+
+## Frontmatter 字段
+
+所有渲染后的文件都会包含通用元数据：
+
+```yaml
+---
+title: "Weekly Update"
+source_url: "https://mail.google.com/mail/u/0/#inbox/18c9..."
+created_at: 2026-03-17T01:23:45.000Z
+updated_at: 2026-03-17T04:56:00.000Z
+---
+```
+
+额外的 Notion 专属字段可能包括：
+
+- `source_url`
+- `created_at`
+- `updated_at`
+- `database`
+- `properties`
+
+额外的 Gmail 专属字段可能包括：
+
+- `from`
+- `to`
+- `cc`
+- `snippet`
+
+额外的 Google Calendar 专属字段可能包括：
+
+- `calendar_id`
+- `calendar_name`
+- `event_status`
+- `start_at`
+- `end_at`
+- `all_day`
+- `location`
+- `organizer`
+- `attendees`
+- `recurrence`
+
+在 frontmatter 之后，`syncdown` 会写入 Markdown `# Title` 标题以及渲染后的正文。

@@ -1,0 +1,136 @@
+---
+title: Notion
+description: Set up Notion token or OAuth access and understand what the connector syncs.
+---
+
+# Notion
+
+## Supported auth methods
+
+The Notion connector supports two auth methods:
+
+- **Token**
+- **OAuth**
+
+In the persisted config, the active method is selected through `notion.authMethod`.
+
+## What OAuth means here
+
+OAuth lets you approve `syncdown` in the browser instead of pasting your Notion account password into the app.
+
+For the Notion connector, that means:
+
+- you create or reuse a Notion **public integration**
+- you paste that integration's client ID and client secret into `syncdown`
+- Notion shows a browser consent screen for the workspace or account that will be connected
+- `syncdown` exchanges the callback code for tokens so later syncs can continue without reconnecting every time
+
+On later sync runs, `syncdown` can continue using the approved connection without asking you to reconnect every time.
+
+If you do not want the browser-based OAuth flow, you can still use the token-based setup instead.
+
+## TUI setup
+
+Open **Connectors → Notion**.
+
+### Token flow
+
+Choose **Connect with Token**.
+
+The TUI opens the Notion integrations page:
+
+```text
+https://www.notion.so/profile/integrations
+```
+
+Then it asks for the token and validates it before saving.
+
+### OAuth flow
+
+Choose **Connect with OAuth**.
+
+The TUI asks for:
+
+- Notion public integration client ID
+- Notion public integration client secret
+
+Then it opens the browser, waits for a local callback, validates the returned access token, and finishes the connection flow.
+
+### Before you start
+
+Prepare a Notion **public integration** in the Notion integrations page.
+
+You will need:
+
+- the public integration client ID
+- the public integration client secret
+
+`syncdown` opens the integrations page from the TUI so you can create a new integration or copy the values from an existing one.
+
+### What happens during connection
+
+1. Paste the client ID.
+2. Paste the client secret.
+3. `syncdown` opens the Notion consent screen in your browser.
+4. Approve access for the intended workspace or account.
+5. Notion redirects back to the local callback server started by `syncdown`.
+6. `syncdown` validates the returned access token and completes the connection.
+
+### Token vs OAuth
+
+- Use **Token** if you already manage a Notion integration token manually and want the simplest non-browser setup.
+- Use **OAuth** if you prefer a browser approval flow and want `syncdown` to keep the connection usable across later syncs.
+
+## Headless setup
+
+Token flow:
+
+```sh
+syncdown config set notion.enabled true
+syncdown config set notion.authMethod token
+printf '%s' "$NOTION_TOKEN" | syncdown config set notion.token --stdin
+```
+
+OAuth flow:
+
+```sh
+syncdown config set notion.enabled true
+syncdown config set notion.authMethod oauth
+printf '%s' "$NOTION_CLIENT_ID" | syncdown config set notion.oauth.clientId --stdin
+printf '%s' "$NOTION_CLIENT_SECRET" | syncdown config set notion.oauth.clientSecret --stdin
+printf '%s' "$NOTION_REFRESH_TOKEN" | syncdown config set notion.oauth.refreshToken --stdin
+```
+
+## What gets synced
+
+The connector:
+
+- validates the chosen token or OAuth credentials
+- discovers shared Notion pages
+- discovers shared data sources
+- queries pages inside each shared data source
+- fetches page metadata and Markdown for each candidate page
+
+Pages from shared data sources are written into database-specific directories when the data source name is available.
+
+Rendered Notion Markdown includes YAML frontmatter with:
+
+- common fields such as `title`, `source`, `created`, `updated`
+- `database` when the page came from a shared data source
+- flattened top-level keys for Notion properties using frontmatter-friendly normalized names such as `status`, `due_date`, or `담당자_이름`
+
+Nested `properties:` frontmatter is not emitted.
+
+## Incremental behavior
+
+The connector stores a cursor between runs.
+
+For shared data sources, that cursor is used to request incremental page candidates. Shared top-level pages are still discovered on each run.
+
+The connector also keeps stored snapshots in SQLite so it can avoid unnecessary rewrites when the source and render versions have not changed.
+
+## Current caveats
+
+- Only content shared with the selected integration or OAuth-connected account is visible.
+- The current implementation targets shared pages and shared data sources, not every possible Notion object type.
+- Large or unusually complex Notion content should be validated in your workspace before relying on it for production exports.

@@ -1,0 +1,145 @@
+---
+title: Gmail
+description: Connect Gmail with Google OAuth and understand the current sync boundaries.
+---
+
+# Gmail
+
+## Auth model
+
+The Gmail connector uses Google OAuth and requires the Gmail readonly scope:
+
+```text
+https://www.googleapis.com/auth/gmail.readonly
+```
+
+## What OAuth means here
+
+OAuth lets you approve Gmail access in the browser instead of giving `syncdown` your Google account password.
+
+For Gmail, that means:
+
+- you create or reuse a Google **Desktop app** OAuth client
+- you paste the client ID and client secret into `syncdown`
+- Google shows a browser consent screen for the Gmail scopes `syncdown` needs
+- `syncdown` completes the connection so later sync runs can continue without reconnecting every time
+
+On later runs, `syncdown` continues using the approved connection automatically.
+
+## TUI setup
+
+Open **Connectors → Gmail** and choose **Connect Google account**.
+
+The TUI asks for:
+
+- Google Desktop app client ID
+- Google Desktop app client secret
+
+After that it opens the browser, waits for the local callback, validates the granted scopes, and completes the connection.
+
+### Before you start
+
+Prepare a Google **Desktop app** OAuth client in Google Cloud Console.
+
+You will need:
+
+- the Desktop app client ID
+- the Desktop app client secret
+
+The TUI opens the Google OAuth client setup page so you can create a client or copy the values from an existing one.
+
+### What happens during connection
+
+1. Paste the Google client ID.
+2. Paste the Google client secret.
+3. `syncdown` opens the Google consent screen in your browser.
+4. Approve the requested Gmail readonly scope.
+5. Google redirects back to the local callback server started by `syncdown`.
+6. `syncdown` validates that the granted scopes are sufficient and completes the connection.
+
+### Gmail scope notes
+
+- Gmail sync requires `https://www.googleapis.com/auth/gmail.readonly`.
+- If you later enable Google Calendar too, `syncdown` requests the union of Gmail and Calendar scopes on the same Google account.
+- If the connected Google account is missing a newly required scope, reconnect and approve the updated consent screen.
+
+## Headless setup
+
+```sh
+syncdown config set gmail.enabled true
+syncdown config set gmail.interval 1h
+syncdown config set gmail.syncFilter primary
+syncdown config set gmail.initialSyncLimit 5000
+syncdown config set gmail.initialSyncLimit 0
+syncdown config set gmail.fetchConcurrency 10
+
+printf '%s' "$GOOGLE_CLIENT_ID" | syncdown config set google.clientId --stdin
+printf '%s' "$GOOGLE_CLIENT_SECRET" | syncdown config set google.clientSecret --stdin
+printf '%s' "$GOOGLE_REFRESH_TOKEN" | syncdown config set google.refreshToken --stdin
+```
+
+## What gets synced
+
+The current Gmail connector:
+
+- syncs `Primary` inbox messages by default
+- can require both `Primary` and `Important` with `gmail.syncFilter=primary-important`
+- writes one Markdown file per message
+- stores message metadata and body text
+- organizes messages by account email, year, and month in the output directory
+
+## Incremental behavior
+
+On the first run, the connector streams message IDs from the active Gmail filter and caps the initial pass with `gmail.initialSyncLimit`.
+
+On later runs, it uses Gmail history IDs to fetch only changed messages.
+
+If the stored Gmail history cursor expires, or if the stored cursor came from an older filter format, `syncdown` falls back to a full scoped rescan.
+
+If a message disappears or stops matching the active Gmail filter, the corresponding local Markdown file is deleted.
+
+## Tuning options
+
+### `gmail.initialSyncLimit`
+
+Controls how many filtered Gmail messages are considered during the first full sync.
+Set it to `0` to sync all matching messages.
+
+Default:
+
+```text
+5000
+```
+
+### `gmail.fetchConcurrency`
+
+Controls how many messages are fetched in parallel.
+
+Default:
+
+```text
+10
+```
+
+### `gmail.syncFilter`
+
+Controls which inbox messages qualify for Gmail sync.
+
+Supported values:
+
+```text
+primary
+primary-important
+```
+
+Behavior:
+
+- `primary`: sync only `INBOX ∩ CATEGORY_PERSONAL`
+- `primary-important`: sync only `INBOX ∩ CATEGORY_PERSONAL ∩ IMPORTANT`
+
+## Current limitations
+
+- `Primary`-scoped inbox sync only
+- no attachment export
+- no inline asset export
+- requires a valid Google refresh token for unattended runs

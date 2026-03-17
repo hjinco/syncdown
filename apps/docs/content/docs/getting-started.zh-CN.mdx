@@ -1,0 +1,82 @@
+---
+title: 开始使用
+description: 从首次安装到通过 TUI 完成第一次本地 Markdown 同步。
+---
+
+# 开始使用
+
+如果你想使用全屏 TUI，这是让 `syncdown` 尽快跑起来的最快路径。
+
+## 1. 启动 TUI
+
+打开交互式终端并运行：
+
+```sh
+syncdown
+```
+
+这会打开 OpenTUI 应用，其中包括：
+
+- 用于设置输出路径和 connector 认证的界面
+- 诊断信息和系统路径
+- 用于执行 connector 和查看日志的同步面板
+
+如果在没有 TTY 的环境中运行 `syncdown`，它会输出帮助信息而不是打开 UI。
+
+## 2. 选择输出目录
+
+在 TUI 中打开 **Output**，选择预设目录或输入自定义路径。
+
+`syncdown` 会在保存前规范化该路径，并将渲染后的 Markdown 写入该目录下。
+
+建议将这个输出树下的 Markdown 文件和各 connector 目录视为由 `syncdown` 管理的输出。通常不建议手动编辑、重命名、移动或重新整理其中生成的 `.md` 文件和文件夹，因为后续同步或完整重同步时，它们可能会被重新生成、覆盖或删除。
+
+## 3. 连接数据源
+
+### Notion
+
+打开 **Connectors → Notion**，并选择以下流程之一：
+
+- **Connect with Token**：`syncdown` 会打开 Notion integrations 页面，然后提示你输入 integration token。
+- **Connect with OAuth**：`syncdown` 会要求输入 Notion public integration client ID 和 client secret，打开浏览器，并等待本地回调完成。
+
+### Gmail
+
+打开 **Connectors → Gmail** 并选择 **Connect Google account**。
+
+TUI 会要求输入 Google Desktop app client ID 和 client secret，打开浏览器，并在本地完成 OAuth 回调。
+
+### Google Calendar
+
+打开 **Connectors → Google Calendar**。
+
+如果你还没有连接共享 Google 账号，请先使用 **Connect Google account**，然后打开 **Select calendars** 选择要同步的日历。
+
+## 4. 运行第一次同步
+
+在 TUI 首页打开 **Sync**，选择以下任一操作：
+
+- **Run all**
+- **Run Notion**
+- **Run Gmail**
+- **Run Google Calendar**
+
+最近的 connector 日志和运行状态会持续显示在同一个面板中。
+
+## 5. 确认结果
+
+检查输出目录中按 connector 分类整理的 Markdown 文件。
+
+你也可以通过 CLI 查看当前应用状态：
+
+```sh
+syncdown status
+syncdown connectors
+syncdown doctor
+```
+
+## 下一步
+
+- 如果想在不使用 TUI 的情况下配置 `syncdown`，请查看 [Configuration](/docs/configuration)。
+- 如果需要完整命令参考，请查看 [CLI](/docs/cli)。
+- 如果需要各 connector 的详细设置说明，请查看 [Connectors](/docs/connectors)。

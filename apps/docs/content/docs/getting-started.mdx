@@ -1,0 +1,82 @@
+---
+title: Getting Started
+description: Go from a fresh install to your first local Markdown sync with the TUI.
+---
+
+# Getting Started
+
+This guide is the fastest way to get `syncdown` working if you want to use the full-screen TUI.
+
+## 1. Launch the TUI
+
+Open an interactive terminal and run:
+
+```sh
+syncdown
+```
+
+This opens the OpenTUI app. It includes:
+
+- setup screens for your output path and connector auth
+- diagnostics and system paths
+- a sync dashboard for running connectors and watching logs
+
+If you run `syncdown` without a TTY, it prints help instead of opening the UI.
+
+## 2. Choose an output directory
+
+In the TUI, open **Output** and select a preset or enter a custom path.
+
+`syncdown` normalizes the path before saving it and writes rendered Markdown underneath that directory.
+
+Treat the Markdown files and connector folders under that output tree as `syncdown`-managed output. It is best not to manually edit, rename, move, or reorganize generated `.md` files or folders there, because later syncs or full resyncs may recreate, overwrite, or remove them.
+
+## 3. Connect a source
+
+### Notion
+
+Open **Connectors → Notion** and choose one of these flows:
+
+- **Connect with Token**: `syncdown` opens the Notion integrations page, then asks for the integration token.
+- **Connect with OAuth**: `syncdown` asks for your Notion public integration client ID and client secret, opens the browser, and waits for the local callback.
+
+### Gmail
+
+Open **Connectors → Gmail** and choose **Connect Google account**.
+
+The TUI asks for your Google Desktop app client ID and client secret, opens the browser, and completes the OAuth callback locally.
+
+### Google Calendar
+
+Open **Connectors → Google Calendar**.
+
+Use **Connect Google account** if you do not already have a shared Google account connected, then open **Select calendars** and choose the calendars you want to sync.
+
+## 4. Run your first sync
+
+From the TUI home screen, open **Sync** and choose:
+
+- **Run all**
+- **Run Notion**
+- **Run Gmail**
+- **Run Google Calendar**
+
+Recent connector logs and run status stay visible in the same dashboard.
+
+## 5. Confirm the result
+
+Check your output directory for Markdown files grouped by connector.
+
+You can also inspect the current app state from the CLI:
+
+```sh
+syncdown status
+syncdown connectors
+syncdown doctor
+```
+
+## Next steps
+
+- Use [Configuration](/docs/configuration) if you want to set up `syncdown` without the TUI.
+- Use [CLI](/docs/cli) if you want the full command reference.
+- Use [Connectors](/docs/connectors) if you want connector-specific setup details.

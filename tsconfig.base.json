@@ -1,0 +1,31 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"paths": {
+			"@syncdown/cli": ["./apps/cli/src/index.ts"],
+			"@syncdown/connector-gmail": ["./packages/connector-gmail/src/index.ts"],
+			"@syncdown/connector-notion": [
+				"./packages/connector-notion/src/index.ts"
+			],
+			"@syncdown/core": ["./packages/core/src/index.ts"],
+			"@syncdown/renderer-md": ["./packages/renderer-md/src/index.ts"],
+			"@syncdown/secrets": ["./packages/secrets/src/index.ts"],
+			"@syncdown/sink-fs": ["./packages/sink-fs/src/index.ts"],
+			"@syncdown/state-sqlite": ["./packages/state-sqlite/src/index.ts"],
+			"@syncdown/tui": ["./packages/tui/src/index.ts"]
+		},
+		"strict": true,
+		"declaration": true,
+		"declarationMap": true,
+		"sourceMap": true,
+		"resolveJsonModule": true,
+		"verbatimModuleSyntax": true,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"skipLibCheck": true,
+		"lib": ["ES2022"],
+		"types": ["node", "bun-types"]
+	}
+}

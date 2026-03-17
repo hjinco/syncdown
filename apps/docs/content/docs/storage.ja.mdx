@@ -1,0 +1,87 @@
+---
+title: ストレージ
+description: レンダリング済み Markdown の構成と管理対象出力の扱いを説明します。
+---
+
+# ストレージ
+
+## Markdown パスレイアウト
+
+レンダリングされた Markdown は、設定された出力ディレクトリ配下に書き込まれます。
+
+Notion ページ:
+
+```text
+<outputDir>/notion/pages/<slug>-<source-id>.md
+```
+
+Notion データベース項目:
+
+```text
+<outputDir>/notion/databases/<database-name>/<slug>-<source-id>.md
+```
+
+Gmail メッセージ:
+
+```text
+<outputDir>/gmail/<account-email-slug>/<year>/<month>/<slug>-<message-id>.md
+```
+
+Google Calendar イベント:
+
+```text
+<outputDir>/google-calendar/<calendar-name>/<year>/<month>/<slug>-<calendar-id:event-id>.md
+```
+
+## 管理対象の出力
+
+出力ツリーは `syncdown` が管理する出力として扱うのが無難です。
+
+その中の生成済み Markdown ファイルやコネクタごとのフォルダを手で編集したり、名前変更・移動・構成の整理し直しをしたりすることは推奨されません。
+
+以後の同期やフル再同期で、それらのファイルやフォルダが再生成・上書き・削除されることがあります。
+
+手書きのメモや独自のフォルダ構成を残したい場合は、管理対象の出力ツリーの外側、または `syncdown` が所有しない別フォルダに保存してください。
+
+## フロントマターフィールド
+
+レンダリングされたすべてのファイルには共通メタデータが含まれます。
+
+```yaml
+---
+title: "Weekly Update"
+source_url: "https://mail.google.com/mail/u/0/#inbox/18c9..."
+created_at: 2026-03-17T01:23:45.000Z
+updated_at: 2026-03-17T04:56:00.000Z
+---
+```
+
+追加の Notion 固有フィールドには次が含まれる場合があります。
+
+- `source_url`
+- `created_at`
+- `updated_at`
+- `database`
+- `properties`
+
+追加の Gmail 固有フィールドには次が含まれる場合があります。
+
+- `from`
+- `to`
+- `cc`
+- `snippet`
+
+追加の Google Calendar 固有フィールドには次が含まれる場合があります。
+
+- `calendar_id`
+- `calendar_name`
+- `event_status`
+- `start_at`
+- `end_at`
+- `all_day`
+- `location`
+- `organizer`
+- `attendees`
+- `recurrence`
+
+フロントマターの後に、`syncdown` は Markdown の `# Title` 見出しとレンダリング済み本文を書き込みます。

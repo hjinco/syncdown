@@ -1,0 +1,84 @@
+---
+title: 저장소
+description: 렌더링된 Markdown 구조와 관리되는 출력 동작을 설명합니다.
+---
+
+# 저장소
+
+## Markdown 경로 레이아웃
+
+렌더링된 Markdown은 설정된 출력 디렉터리 아래에 기록됩니다.
+
+Notion 페이지:
+
+```text
+<outputDir>/notion/pages/<slug>-<source-id>.md
+```
+
+Notion 데이터베이스 항목:
+
+```text
+<outputDir>/notion/databases/<database-name>/<slug>-<source-id>.md
+```
+
+Gmail 메시지:
+
+```text
+<outputDir>/gmail/<account-email-slug>/<year>/<month>/<slug>-<message-id>.md
+```
+
+Google Calendar 이벤트:
+
+```text
+<outputDir>/google-calendar/<calendar-name>/<year>/<month>/<slug>-<calendar-id:event-id>.md
+```
+
+## 관리되는 출력물
+
+출력 트리는 `syncdown`이 관리하는 출력물로 보는 편이 좋습니다.
+
+그 안의 생성된 Markdown 파일이나 커넥터 폴더를 직접 수정하거나, 이름을 바꾸거나, 이동하거나, 구조를 다시 정리하는 것은 권장하지 않습니다.
+
+이후 동기화나 전체 재동기화 과정에서 해당 파일이나 폴더가 다시 생성되거나 덮어써지거나 삭제될 수 있습니다.
+
+직접 작성한 메모나 원하는 폴더 구조를 유지하고 싶다면, 관리되는 출력 트리 바깥이나 `syncdown`이 소유하지 않는 별도 폴더에 보관하세요.
+
+## 프론트매터 필드
+
+렌더링된 모든 파일은 공통 메타데이터를 포함합니다.
+
+```yaml
+---
+title: "Weekly Update"
+source: "https://mail.google.com/mail/u/0/#inbox/18c9..."
+created: "2026-03-17T01:23:45.000Z"
+updated: "2026-03-17T04:56:00.000Z"
+---
+```
+
+추가적인 Notion 전용 필드에는 다음이 포함될 수 있습니다.
+
+- `database`
+- `status`, `due_date`, `담당자_이름` 같은 정규화된 top-level 속성 키
+
+추가적인 Gmail 전용 필드에는 다음이 포함될 수 있습니다.
+
+- `account`
+- `from`
+- `to`
+- `cc`
+- `snippet`
+
+추가적인 Google Calendar 전용 필드에는 다음이 포함될 수 있습니다.
+
+- `calendar`
+- `status`
+- `start`
+- `end`
+- `all_day`
+- `location`
+- `organizer`
+- `attendees`
+- `recurrence`
+
+프론트매터 뒤에는 `syncdown`이 Markdown `# Title` 제목과 렌더링된 본문을 기록합니다.

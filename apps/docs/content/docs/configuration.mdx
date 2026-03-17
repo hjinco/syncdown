@@ -1,0 +1,154 @@
+---
+title: Configuration
+description: Set up syncdown headlessly from the CLI.
+---
+
+# Configuration
+
+This is the starting point if you want to set up `syncdown` from the command line without using the TUI.
+
+## Headless quick start
+
+The smallest headless flow is:
+
+1. Set an output directory.
+2. Enable and configure a connector.
+3. Store the required secret values.
+4. Run a sync.
+
+Example with Notion token auth:
+
+```sh
+syncdown config set outputDir /path/to/output
+syncdown config set notion.enabled true
+syncdown config set notion.authMethod token
+printf '%s' "$NOTION_TOKEN" | syncdown config set notion.token --stdin
+syncdown run
+```
+
+For Gmail, Google Calendar, or Notion OAuth, use the connector-specific secret keys shown below.
+
+## Config model
+
+The persisted config contains:
+
+- `outputDir`
+- OAuth app definitions
+- connection definitions
+- integration definitions for each connector
+
+You normally interact with this through the TUI or `syncdown config`.
+
+## Common headless setup commands
+
+Set values:
+
+```sh
+syncdown config set outputDir /path/to/output
+syncdown config set notion.enabled true
+syncdown config set notion.interval 1h
+syncdown config set notion.authMethod oauth
+
+syncdown config set gmail.enabled true
+syncdown config set gmail.interval 1h
+syncdown config set gmail.syncFilter primary
+syncdown config set gmail.initialSyncLimit 5000
+syncdown config set gmail.initialSyncLimit 0
+syncdown config set gmail.fetchConcurrency 10
+
+syncdown config set googleCalendar.enabled true
+syncdown config set googleCalendar.interval 1h
+syncdown config set googleCalendar.selectedCalendarIds primary,work@example.com
+```
+
+Read secret values from standard input:
+
+```sh
+printf '%s' "$NOTION_TOKEN" | syncdown config set notion.token --stdin
+
+printf '%s' "$NOTION_CLIENT_ID" | syncdown config set notion.oauth.clientId --stdin
+printf '%s' "$NOTION_CLIENT_SECRET" | syncdown config set notion.oauth.clientSecret --stdin
+printf '%s' "$NOTION_REFRESH_TOKEN" | syncdown config set notion.oauth.refreshToken --stdin
+
+printf '%s' "$GOOGLE_CLIENT_ID" | syncdown config set google.clientId --stdin
+printf '%s' "$GOOGLE_CLIENT_SECRET" | syncdown config set google.clientSecret --stdin
+printf '%s' "$GOOGLE_REFRESH_TOKEN" | syncdown config set google.refreshToken --stdin
+```
+
+Run a sync once setup is complete:
+
+```sh
+syncdown run
+```
+
+For a command-by-command reference, see [CLI](/docs/cli).
+
+## Config key reference
+
+### Set values
+
+Use `syncdown config set <key> <value>` for plain config values.
+
+### Set secret values
+
+Use `syncdown config set <key> --stdin` for secret-backed values and pipe the value through standard input.
+
+Unset values:
+
+```sh
+syncdown config unset outputDir
+syncdown config unset notion.token
+syncdown config unset notion.oauth.clientId
+syncdown config unset notion.oauth.clientSecret
+syncdown config unset notion.oauth.refreshToken
+syncdown config unset google.clientId
+syncdown config unset google.clientSecret
+syncdown config unset google.refreshToken
+```
+
+## Supported config keys
+
+Plain config values:
+
+- `outputDir`
+- `notion.enabled`
+- `notion.interval`
+- `notion.authMethod`
+- `gmail.enabled`
+- `gmail.interval`
+- `gmail.syncFilter`
+- `gmail.initialSyncLimit`
+- `gmail.fetchConcurrency`
+- `googleCalendar.enabled`
+- `googleCalendar.interval`
+- `googleCalendar.selectedCalendarIds`
+
+Secret-backed values:
+
+- `notion.token`
+- `notion.oauth.clientId`
+- `notion.oauth.clientSecret`
+- `notion.oauth.refreshToken`
+- `google.clientId`
+- `google.clientSecret`
+- `google.refreshToken`
+
+## Interval behavior
+
+Connector intervals are stored per integration:
+
+- `notion.interval`
+- `gmail.interval`
+- `googleCalendar.interval`
+
+These intervals are used by the TUI sync dashboard when it starts **per-integration watch** mode.
+
+The CLI watch command is different:
+
+```sh
+syncdown run --watch --interval 5m
+```
+
+`run --watch` uses one global interval for all enabled connectors. If you omit `--interval`, the default is `1h`.
+
+For watch mode and one-shot sync commands, see [Sync](/docs/sync).

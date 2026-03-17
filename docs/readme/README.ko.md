@@ -1,0 +1,160 @@
+# syncdown
+
+언어: [English](../../README.md) | **한국어** | [日本語](./README.ja.md) | [简体中文](./README.zh-CN.md)
+
+`syncdown`은 외부 서비스 데이터를 로컬 파일 시스템의 Markdown으로 동기화하는 인터랙티브 CLI입니다.
+
+Notion, Gmail 같은 도구를 연결한 뒤 로컬에 Markdown 사본을 유지해서 검색, 백업, 버전 관리, 개인 워크플로우 연동에 활용할 수 있습니다.
+
+## Install
+
+사전 빌드된 바이너리는 GitHub Releases에 다음 플랫폼용으로 게시됩니다.
+
+```text
+darwin-arm64
+darwin-x64
+linux-x64
+windows-x64
+```
+
+macOS 및 Linux:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/hjinco/syncdown/main/scripts/install.sh | sh
+```
+
+Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/hjinco/syncdown/main/scripts/install.ps1 | iex
+```
+
+수동 다운로드는
+[GitHub Releases page](https://github.com/hjinco/syncdown/releases)에서도 가능합니다.
+
+설치 스크립트는 다음 환경 변수를 지원합니다.
+
+- `SYNCDOWN_VERSION`: `0.1.0` 또는 `v0.1.0` 같은 특정 버전 설치
+- `SYNCDOWN_INSTALL_DIR`: 설치 디렉터리 재정의
+
+## Quick Start
+
+### 1. syncdown 실행
+
+인터랙티브 터미널에서 `syncdown`을 실행합니다.
+
+```sh
+syncdown
+```
+
+기본 진입점은 전체 화면 TUI를 열고, 여기서 설정과 일상적인 동기화 제어를 할 수 있습니다.
+
+### 2. 출력 디렉터리 선택
+
+TUI에서 **Output**을 열고 Markdown 출력 위치를 선택합니다.
+
+`syncdown`은 동기화된 파일을 이 디렉터리 아래에 저장하고, 설정, 시크릿, 동기화 상태는 별도의 로컬 앱 데이터 디렉터리에 관리합니다.
+
+이 출력 트리 아래의 Markdown 파일과 커넥터 폴더는 `syncdown`이 관리하는 출력물로 보는 편이 좋습니다. 생성된 `.md` 파일이나 폴더를 직접 수정하거나, 이름을 바꾸거나, 이동하거나, 구조를 다시 정리하는 것은 권장하지 않습니다. 이후 동기화나 전체 재동기화 과정에서 다시 생성되거나 덮어써지거나 삭제될 수 있습니다.
+
+### 3. 소스 연결
+
+**Connectors**를 열고 지원되는 소스를 하나 이상 설정합니다.
+
+- **Notion**: 공유된 페이지와 데이터 소스 콘텐츠 동기화
+- **Gmail**: Google OAuth 기반 `Primary` 받은편지함 동기화
+
+### 4. 첫 동기화 실행
+
+TUI 홈 화면에서 **Sync**를 열고 다음 중 하나를 실행합니다.
+
+- **Run all**
+- **Run Notion**
+- **Run Gmail**
+
+최소한의 헤드리스 설정은 CLI로도 가능합니다.
+
+```sh
+syncdown config set outputDir /path/to/output
+syncdown config set notion.enabled true
+printf '%s' "$NOTION_TOKEN" | syncdown config set notion.token --stdin
+syncdown run
+```
+
+### 5. 결과 확인
+
+출력 디렉터리에서 커넥터 기준으로 정리된 Markdown 파일을 확인합니다.
+
+현재 상태 확인에는 다음 명령이 유용합니다.
+
+```sh
+syncdown status
+syncdown connectors
+syncdown doctor
+```
+
+## How It Works
+
+`syncdown`은 크게 다음 순서로 동작합니다.
+
+1. 로컬 설정을 로드합니다.
+2. 암호화된 로컬 시크릿 저장소에서 커넥터 자격 증명을 읽습니다.
+3. 활성화된 연동에서 데이터를 가져옵니다.
+4. 출력 디렉터리에 Markdown을 렌더링합니다.
+
+렌더링된 파일은 커넥터 기준으로 정리됩니다. 예시는 다음과 같습니다.
+
+```text
+notion/pages/project-plan-<source-id>.md
+notion/databases/tasks/task-item-<source-id>.md
+gmail/account-example-com/2026/03/weekly-update-<message-id>.md
+```
+
+## Common Commands
+
+```sh
+syncdown
+syncdown status
+syncdown connectors
+syncdown doctor
+syncdown run
+syncdown run --watch
+syncdown update --check
+```
+
+비대화형 설정에는 `syncdown config set <key> <value>` 와 `syncdown config unset <key>` 를 사용합니다.
+
+## Connectors
+
+현재 `syncdown`이 지원하는 소스는 다음과 같습니다.
+
+- **Notion**: token 또는 OAuth 인증
+- **Gmail**: Google OAuth 및 증분 inbox 동기화
+
+커넥터별 설정 방법, 지원 동작, 현재 제약은 별도 문서에 정리되어 있습니다.
+
+- [Notion connector](./apps/docs/content/docs/connectors/notion.mdx)
+- [Gmail connector](./apps/docs/content/docs/connectors/gmail.mdx)
+
+## Docs
+
+더 자세한 가이드는 다음 문서를 참고하세요.
+
+- [Getting Started](./apps/docs/content/docs/getting-started.mdx)
+- [Installation](./apps/docs/content/docs/installation.mdx)
+- [Configuration](./apps/docs/content/docs/configuration.mdx)
+- [CLI reference](./apps/docs/content/docs/cli.mdx)
+
+문서 앱은 현재 영어 콘텐츠를 기본으로 사용합니다. 한국어 로케일 라우트와 UI는 이미 지원되며, 일부 상세 페이지 콘텐츠는 번역본이 추가되기 전까지 영어 원문을 그대로 사용할 수 있습니다.
+
+## Developing syncdown
+
+소스에서 `syncdown`을 실행하거나, 워크스페이스를 개발하거나, 릴리스 바이너리를 만들려면 [CONTRIBUTING.md](./CONTRIBUTING.md)를 참고하세요.
+
+이 문서에는 로컬 선행 조건, 핵심 워크스페이스 명령, 패키지 구성, 릴리스 워크플로가 정리되어 있습니다.
+
+## 라이선스
+
+이 저장소는 Apache License 2.0으로 배포됩니다. 자세한 내용은 [LICENSE](./LICENSE)를 참고하세요.
+
+제3자 서비스 약관, 상표, 그리고 사용자가 동기화한 콘텐츠의 권리는 각각 별도의 해당 약관과 권리 체계를 따릅니다.

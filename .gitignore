@@ -1,0 +1,9 @@
+node_modules
+dist
+artifacts
+*.tsbuildinfo
+.turbo
+.tmp
+.wrangler
+apps/docs/.output
+apps/docs/.vercel

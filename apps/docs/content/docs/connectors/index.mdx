@@ -1,0 +1,29 @@
+---
+title: Connectors
+description: Connector-specific setup and behavior for Notion, Gmail, and Google Calendar.
+---
+
+# Connectors
+
+`syncdown` currently ships with three connectors:
+
+- [Notion](/docs/connectors/notion)
+- [Gmail](/docs/connectors/gmail)
+- [Google Calendar](/docs/connectors/google-calendar)
+
+Both connectors write Markdown through the same renderer and filesystem sink, but they differ in auth flow, discovery model, and sync semantics.
+
+## Shared behavior
+
+For every connector:
+
+- credentials are validated before sync runs
+- validation runs before a sync begins
+- output is written into connector/integration-scoped Markdown paths
+- incremental sync state is reused on later runs
+
+## Connector-specific guides
+
+- Use [Notion](/docs/connectors/notion) for token vs OAuth setup, page discovery, and data source behavior.
+- Use [Gmail](/docs/connectors/gmail) for Google OAuth, Primary-scoped sync filters, and incremental history behavior.
+- Use [Google Calendar](/docs/connectors/google-calendar) for shared Google OAuth, calendar selection, and incremental event sync.

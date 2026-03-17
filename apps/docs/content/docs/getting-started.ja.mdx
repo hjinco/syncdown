@@ -1,0 +1,82 @@
+---
+title: はじめに
+description: 新規インストール直後から TUI を使って最初のローカル Markdown 同期まで進めます。
+---
+
+# はじめに
+
+このガイドは、フルスクリーン TUI を使って `syncdown` を最短でセットアップするための手順です。
+
+## 1. TUI を起動
+
+対話型ターミナルを開き、次を実行します。
+
+```sh
+syncdown
+```
+
+OpenTUI アプリが起動し、次の機能が使えます。
+
+- 出力パスとコネクタ認証のセットアップ画面
+- 診断情報とシステムパス
+- コネクタ実行とログ確認のための同期ダッシュボード
+
+TTY なしで `syncdown` を実行すると、UI の代わりにヘルプが表示されます。
+
+## 2. 出力ディレクトリを選ぶ
+
+TUI で **Output** を開き、プリセットを選ぶかカスタムパスを入力します。
+
+`syncdown` は保存前にパスを正規化し、そのディレクトリ配下にレンダリング済み Markdown を書き込みます。
+
+この出力ツリー配下の Markdown ファイルとコネクタごとのフォルダは、`syncdown` が管理する出力として扱うのが無難です。生成済みの `.md` ファイルやフォルダを手で編集したり、名前変更・移動・構成の整理し直しをしたりすることは推奨されません。以後の同期やフル再同期で再生成・上書き・削除されることがあります。
+
+## 3. ソースを接続
+
+### Notion
+
+**Connectors → Notion** を開き、次のいずれかのフローを選びます。
+
+- **Connect with Token**: `syncdown` が Notion integrations ページを開き、integration token の入力を求めます。
+- **Connect with OAuth**: `syncdown` が Notion public integration client ID と client secret を求め、ブラウザを開いてローカルコールバックを待ちます。
+
+### Gmail
+
+**Connectors → Gmail** を開き、**Connect Google account** を選択します。
+
+TUI は Google Desktop app client ID と client secret を求め、ブラウザを開いてローカルで OAuth コールバックを完了します。
+
+### Google Calendar
+
+**Connectors → Google Calendar** を開きます。
+
+共有 Google アカウントがまだ接続されていない場合は **Connect Google account** を使い、その後 **Select calendars** を開いて同期したいカレンダーを選びます。
+
+## 4. 最初の同期を実行
+
+TUI ホーム画面で **Sync** を開き、次のいずれかを選びます。
+
+- **Run all**
+- **Run Notion**
+- **Run Gmail**
+- **Run Google Calendar**
+
+最近のコネクタログと実行状態は、同じダッシュボード上で確認できます。
+
+## 5. 結果を確認
+
+出力ディレクトリで、コネクタごとに整理された Markdown ファイルを確認します。
+
+CLI から現在のアプリ状態を確認することもできます。
+
+```sh
+syncdown status
+syncdown connectors
+syncdown doctor
+```
+
+## 次のステップ
+
+- TUI を使わずに `syncdown` を設定したい場合は [Configuration](/docs/configuration) を参照してください。
+- コマンド全体のリファレンスが必要なら [CLI](/docs/cli) を参照してください。
+- コネクタごとの設定詳細が必要なら [Connectors](/docs/connectors) を参照してください。

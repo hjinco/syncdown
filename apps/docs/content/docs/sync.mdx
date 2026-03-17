@@ -1,0 +1,98 @@
+---
+title: Sync
+description: Run one-shot syncs, watch mode, and the TUI sync dashboard.
+---
+
+# Sync
+
+## Run one sync cycle
+
+Use the CLI to run all enabled connectors once:
+
+```sh
+syncdown run
+```
+
+This opens a sync session, runs the enabled integrations, writes Markdown output, updates the SQLite state store, and exits with a run status code.
+
+Target a single connector or integration:
+
+```sh
+syncdown run --connector notion
+syncdown run --connector google-calendar
+syncdown run --integration notion-default
+```
+
+Force a full resync for the selected target:
+
+```sh
+syncdown run --integration notion-default --reset
+```
+
+`--reset` is available for one-shot runs only. It clears the selected integration state and deletes its rendered Markdown files before the new sync.
+
+## Global CLI watch mode
+
+Keep the process alive and re-run all enabled connectors on one shared interval:
+
+```sh
+syncdown run --watch
+syncdown run --watch --interval 5m
+```
+
+Supported watch intervals:
+
+```text
+5m, 15m, 1h, 6h, 24h
+```
+
+If no interval is provided, the default is `1h`.
+
+## TUI sync dashboard
+
+The TUI exposes a separate sync dashboard with these actions:
+
+- run all enabled connectors immediately
+- run full resyncs for all, Notion, or Gmail
+- run full resyncs for all, Notion, Gmail, or Google Calendar
+- run Notion immediately
+- run Gmail immediately
+- run Google Calendar immediately
+- start watch mode
+- stop watch mode
+- clear the visible dashboard log
+
+Unlike `syncdown run --watch`, the TUI dashboard starts **per-integration watch** mode. That means each enabled connector uses its own configured interval.
+
+## Runtime behavior
+
+During a sync session, `syncdown` tracks:
+
+- current status: `idle`, `running`, or `watching`
+- per-integration status and queued runs
+- recent log lines
+- last run target, timestamps, exit code, and last error
+
+This state powers the TUI dashboard and the watch loop.
+
+## Exit codes
+
+The CLI exposes explicit run exit codes:
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success |
+| `2` | Configuration error |
+| `3` | Another sync is already running |
+| `4` | Connector validation failed |
+| `5` | Connector sync failed |
+
+## Related commands
+
+```sh
+syncdown status
+syncdown connectors
+syncdown doctor
+```
+
+Use `status` for a quick summary, `connectors` for a connector listing, and `doctor` for path and health diagnostics.

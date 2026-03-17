@@ -1,0 +1,115 @@
+---
+title: Google Calendar
+description: Connect Google Calendar with shared Google OAuth and understand selected-calendar event sync.
+---
+
+# Google Calendar
+
+## Auth model
+
+The Google Calendar connector uses the shared Google OAuth account and requires the Calendar readonly scope:
+
+```text
+https://www.googleapis.com/auth/calendar.readonly
+```
+
+If Gmail is also enabled, `syncdown` requests the union of Gmail and Calendar scopes on the same Google account.
+
+## What OAuth means here
+
+OAuth lets you approve calendar access in the browser instead of sharing your Google account password with `syncdown`.
+
+For Google Calendar, that means:
+
+- you create or reuse a Google **Desktop app** OAuth client
+- you paste the client ID and client secret into `syncdown`
+- Google shows a browser consent screen for the calendar scopes `syncdown` needs
+- `syncdown` completes the connection so later sync runs can continue without reconnecting every time
+
+The Google OAuth account is shared between the Gmail and Google Calendar connectors. One connected Google account can satisfy both connectors as long as it has all required scopes.
+
+## TUI setup
+
+Open **Connectors → Google Calendar**.
+
+Use **Connect Google account** if the shared Google account is missing or needs a scope upgrade, then open **Select calendars** and choose the calendars you want to sync.
+
+### Before you start
+
+Prepare a Google **Desktop app** OAuth client in Google Cloud Console.
+
+You will need:
+
+- the Desktop app client ID
+- the Desktop app client secret
+
+The TUI opens the Google OAuth client setup page so you can create a client or copy the values from an existing one.
+
+### What happens during connection
+
+1. Paste the Google client ID.
+2. Paste the Google client secret.
+3. `syncdown` opens the Google consent screen in your browser.
+4. Approve the requested Calendar readonly scope.
+5. Google redirects back to the local callback server started by `syncdown`.
+6. `syncdown` validates the granted scopes and completes the connection.
+7. Return to **Select calendars** and choose which calendars should be synced.
+
+### Shared Google account and scope upgrades
+
+- Gmail and Google Calendar use the same stored Google account in `syncdown`.
+- If you connected Gmail first, Google Calendar may require a reconnect so Google can grant the additional Calendar scope.
+- If you connected Calendar first, enabling Gmail later may similarly require a reconnect for the Gmail scope.
+- Reconnecting updates the shared Google account credentials; you do not need separate Google accounts for each connector.
+
+## Headless setup
+
+```sh
+syncdown config set googleCalendar.enabled true
+syncdown config set googleCalendar.interval 1h
+syncdown config set googleCalendar.selectedCalendarIds primary,work@example.com
+
+printf '%s' "$GOOGLE_CLIENT_ID" | syncdown config set google.clientId --stdin
+printf '%s' "$GOOGLE_CLIENT_SECRET" | syncdown config set google.clientSecret --stdin
+printf '%s' "$GOOGLE_REFRESH_TOKEN" | syncdown config set google.refreshToken --stdin
+```
+
+## What gets synced
+
+The current Google Calendar connector:
+
+- syncs only the calendars listed in `googleCalendar.selectedCalendarIds`
+- writes one Markdown file per event or recurring series
+- keeps recurring series as series-level documents instead of expanding each instance
+- stores event metadata plus the description body
+- organizes output by calendar, year, and month
+
+## Incremental behavior
+
+On the first run, `syncdown` performs a full scan for each selected calendar and stores a per-calendar sync token.
+
+On later runs, it uses those per-calendar sync tokens to fetch only changed events.
+
+If a stored sync token expires, `syncdown` falls back to a full rebuild for that calendar.
+
+If you remove a calendar from `googleCalendar.selectedCalendarIds`, `syncdown` deletes that calendar's local Markdown files on the next sync.
+
+## Config options
+
+### `googleCalendar.selectedCalendarIds`
+
+Comma-separated calendar IDs to include in sync.
+
+Examples:
+
+```text
+primary
+primary,work@example.com
+```
+
+## Current limitations
+
+- selected calendars only
+- no per-occurrence recurring expansion
+- no arbitrary date-window sync
+- requires a valid Google refresh token for unattended runs

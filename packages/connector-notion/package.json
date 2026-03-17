@@ -1,0 +1,19 @@
+{
+	"name": "@syncdown/connector-notion",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsgo -p ./tsconfig.json --noEmit --pretty false",
+		"test": "bun test ./src/index.test.ts"
+	},
+	"dependencies": {
+		"@notionhq/client": "^5.13.0",
+		"@syncdown/core": "workspace:*"
+	}
+}

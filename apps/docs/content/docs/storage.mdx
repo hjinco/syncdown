@@ -1,0 +1,84 @@
+---
+title: Storage
+description: Understand the rendered Markdown layout and managed output behavior.
+---
+
+# Storage
+
+## Markdown path layout
+
+Rendered Markdown is written under the configured output directory.
+
+Notion pages:
+
+```text
+<outputDir>/notion/pages/<slug>-<source-id>.md
+```
+
+Notion database items:
+
+```text
+<outputDir>/notion/databases/<database-name>/<slug>-<source-id>.md
+```
+
+Gmail messages:
+
+```text
+<outputDir>/gmail/<account-email-slug>/<year>/<month>/<slug>-<message-id>.md
+```
+
+Google Calendar events:
+
+```text
+<outputDir>/google-calendar/<calendar-name>/<year>/<month>/<slug>-<calendar-id:event-id>.md
+```
+
+## Managed output
+
+Treat the output tree as `syncdown`-managed output.
+
+It is best not to manually edit, rename, move, or reorganize generated Markdown files or connector folders there.
+
+Later syncs or full resyncs may recreate, overwrite, or remove those files and folders.
+
+If you want to keep handwritten notes or a custom folder layout, store them outside the managed output tree or in a separate folder that `syncdown` does not own.
+
+## Frontmatter fields
+
+All rendered files include common metadata:
+
+```yaml
+---
+title: "Weekly Update"
+source: "https://mail.google.com/mail/u/0/#inbox/18c9..."
+created: "2026-03-17T01:23:45.000Z"
+updated: "2026-03-17T04:56:00.000Z"
+---
+```
+
+Additional Notion-specific fields may include:
+
+- `database`
+- normalized top-level property keys such as `status`, `due_date`, or `담당자_이름`
+
+Additional Gmail-specific fields may include:
+
+- `account`
+- `from`
+- `to`
+- `cc`
+- `snippet`
+
+Additional Google Calendar-specific fields may include:
+
+- `calendar`
+- `status`
+- `start`
+- `end`
+- `all_day`
+- `location`
+- `organizer`
+- `attendees`
+- `recurrence`
+
+After the frontmatter, `syncdown` writes a Markdown `# Title` heading followed by the rendered body.

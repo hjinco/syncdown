@@ -1,0 +1,158 @@
+---
+title: CLI
+description: Interactive entrypoint and command reference for operating syncdown from the CLI.
+---
+
+# CLI
+
+This page is the command reference for `syncdown`.
+
+If you want a step-by-step headless setup flow, start with [Configuration](/docs/configuration). If you want the interactive setup path, use [Getting Started](/docs/getting-started).
+
+## Top-level commands
+
+```text
+syncdown
+syncdown status
+syncdown config set <key> <value>
+syncdown config set <key> --stdin
+syncdown config unset <key>
+syncdown run
+syncdown run --connector <notion|gmail|google-calendar>
+syncdown run --integration <integration-id>
+syncdown run --reset [--connector <notion|gmail|google-calendar>|--integration <integration-id>]
+syncdown run --watch [--interval <5m|15m|1h|6h|24h>]
+syncdown connectors
+syncdown doctor
+syncdown update
+syncdown update --check
+```
+
+## `syncdown`
+
+In an interactive terminal, `syncdown` launches the TUI.
+
+Without a TTY, it prints help and exits with a configuration error.
+
+This is the interactive entrypoint, not the headless setup guide.
+
+## `syncdown status`
+
+Shows a high-level summary of:
+
+- output directory
+- Google credential status
+- Notion status, auth method, interval, credentials, and last sync
+- Gmail status, interval, inbox filter, initial sync limit, concurrency, credentials, and last sync
+- Google Calendar status, interval, selected calendar count, credentials, and last sync
+
+It also prints next-step guidance based on whether setup is complete.
+
+## `syncdown config set`
+
+Use this to persist non-secret config values and to set secrets through `--stdin`.
+
+Examples:
+
+```sh
+syncdown config set outputDir /path/to/output
+syncdown config set notion.enabled true
+syncdown config set notion.authMethod token
+syncdown config set gmail.syncFilter primary
+syncdown config set gmail.initialSyncLimit 1000
+syncdown config set gmail.initialSyncLimit 0
+syncdown config set gmail.fetchConcurrency 20
+syncdown config set googleCalendar.selectedCalendarIds primary,work@example.com
+```
+
+For secret values:
+
+```sh
+printf '%s' "$TOKEN" | syncdown config set notion.token --stdin
+printf '%s' "$GOOGLE_REFRESH_TOKEN" | syncdown config set google.refreshToken --stdin
+```
+
+## `syncdown config unset`
+
+Examples:
+
+```sh
+syncdown config unset outputDir
+syncdown config unset notion.token
+syncdown config unset google.clientSecret
+```
+
+## `syncdown run`
+
+Run all enabled connectors once:
+
+```sh
+syncdown run
+```
+
+Run one connector or one integration once:
+
+```sh
+syncdown run --connector notion
+syncdown run --connector google-calendar
+syncdown run --integration notion-default
+```
+
+Reset an integration before rerunning it:
+
+```sh
+syncdown run --integration notion-default --reset
+```
+
+`--reset` clears the selected integration's cursor, last sync timestamp,
+tracked records, stored snapshots, and rendered files before the sync starts.
+
+Start global watch mode:
+
+```sh
+syncdown run --watch
+syncdown run --watch --interval 15m
+```
+
+## `syncdown connectors`
+
+Lists each integration with:
+
+- connector ID
+- enabled flag
+- interval
+- credential completeness
+- last sync timestamp
+
+## `syncdown doctor`
+
+Prints operational diagnostics and validation details such as:
+
+- per-integration validation results
+- output directory writability
+- local state and setup health details
+
+## `syncdown update`
+
+Check whether a newer release is available:
+
+```sh
+syncdown update --check
+```
+
+Download and install the latest published release binary:
+
+```sh
+syncdown update
+```
+
+Self-update only works for published release binaries. When the CLI is running
+from source with Bun, `syncdown update` reports that self-update is
+unavailable.
+
+## Help
+
+```sh
+syncdown --help
+syncdown -h
+```

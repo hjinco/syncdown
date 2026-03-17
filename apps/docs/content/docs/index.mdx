@@ -1,0 +1,87 @@
+---
+title: Introduction
+description: Learn what syncdown does, what it syncs, and which workflow to start with.
+---
+
+# Introduction
+
+`syncdown` pulls content from external services and saves it as local Markdown files on your filesystem.
+
+It is designed for people who want their notes and messages outside the browser: in a local folder they can search, back up, sync, or feed into another tool.
+
+Today, `syncdown` includes:
+
+- a full-screen TUI for setup and day-to-day sync control
+- headless config commands for automation and remote environments
+- a Notion connector for shared pages and shared data source content
+- a Gmail connector for `Primary` inbox messages
+- a Google Calendar connector for selected calendars and event/series exports
+- local Markdown rendering into connector-scoped files
+
+## What it does
+
+At a high level, `syncdown` helps you:
+
+1. Connect supported services such as Notion, Gmail, and Google Calendar.
+2. Choose a local output directory.
+3. Fetch content from those services.
+4. Write one Markdown file per source into a predictable folder structure.
+
+That makes it useful for local knowledge bases, archives, search indexing, backups, and personal workflows built around plain files.
+
+## What you can sync
+
+### Notion
+
+- Shared pages
+- Pages returned from shared data sources
+- Token-based auth
+- OAuth-based auth
+
+### Gmail
+
+- One Markdown file per message
+- Google OAuth
+- `Primary` by default, with optional `Primary + Important`
+- Incremental updates using Gmail history IDs
+
+### Google Calendar
+
+- One Markdown file per event or recurring series
+- Shared Google OAuth
+- Selected-calendar sync
+- Incremental updates using per-calendar sync tokens
+
+## What the output looks like
+
+Rendered files are grouped by connector so they stay easy to inspect.
+
+Typical paths look like this:
+
+```text
+notion/pages/project-plan-<source-id>.md
+notion/databases/tasks/task-item-<source-id>.md
+gmail/account-example-com/2026/03/weekly-update-<message-id>.md
+google-calendar/primary/2026/03/team-sync-<calendar-id:event-id>.md
+```
+
+Each document starts with frontmatter that preserves source metadata. The exact fields depend on the connector. For Notion, common fields include `title`, `source`, `created`, `updated`, and `database`, plus normalized top-level keys for Notion properties such as `status` or `due_date`.
+
+```yaml
+---
+title: "Project Plan"
+source: "https://www.notion.so/..."
+created: "2026-03-17T01:23:45.000Z"
+updated: "2026-03-17T04:56:00.000Z"
+database: "Tasks"
+status: "In Progress"
+due_date: "2026-03-20"
+---
+```
+
+## Choose your path
+
+- Start with [Installation](/docs/installation) if you still need to install the binary.
+- Use [Getting Started](/docs/getting-started) if you want the fastest TUI-based setup path.
+- Use [Configuration](/docs/configuration) if you want a headless CLI setup flow.
+- Use [CLI](/docs/cli) if you want the command reference.
