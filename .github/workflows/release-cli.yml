@@ -304,12 +304,57 @@ jobs:
             | sed 's#  artifacts/release-assets/[^/]*/##' \
             > "artifacts/release-assets/final/syncdown-${CLI_TAG}-SHA256SUMS.txt"
 
+      - name: Read CLI changelog entry
+        id: changelog
+        env:
+          CHANGELOG_PATH: apps/cli/CHANGELOG.md
+        run: |
+          node <<'EOF'
+          const fs = require("node:fs");
+
+          const changelogPath = process.env.CHANGELOG_PATH;
+          const cliVersion = process.env.CLI_VERSION;
+          const githubOutput = process.env.GITHUB_OUTPUT;
+
+          if (!changelogPath || !cliVersion || !githubOutput) {
+            throw new Error("Missing required environment for changelog extraction.");
+          }
+
+          if (!fs.existsSync(changelogPath)) {
+            throw new Error(`Expected changelog at ${changelogPath}, but it does not exist.`);
+          }
+
+          const changelog = fs.readFileSync(changelogPath, "utf8");
+          const escapedVersion = cliVersion.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const sectionPattern = new RegExp(
+            `^##\\s+\\[?${escapedVersion}\\]?[^\\n]*\\n([\\s\\S]*?)(?=^##\\s+|\\Z)`,
+            "m",
+          );
+          const match = changelog.match(sectionPattern);
+
+          if (!match) {
+            throw new Error(
+              `Could not find changelog section for version ${cliVersion} in ${changelogPath}.`,
+            );
+          }
+
+          const releaseNotes = match[1].trim();
+
+          if (!releaseNotes) {
+            throw new Error(
+              `Changelog section for version ${cliVersion} in ${changelogPath} is empty.`,
+            );
+          }
+
+          fs.appendFileSync(githubOutput, `release_notes<<__CHANGELOG__\n${releaseNotes}\n__CHANGELOG__\n`);
+          EOF
+
       - name: Publish CLI GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.CLI_TAG }}
           name: CLI v${{ env.CLI_VERSION }}
-          generate_release_notes: true
+          body: ${{ steps.changelog.outputs.release_notes }}
           overwrite_files: true
           files: |
             artifacts/release-assets/**/*.tar.gz
