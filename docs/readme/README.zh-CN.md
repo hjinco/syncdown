@@ -4,7 +4,9 @@
 
 `syncdown` 是一个交互式 CLI，用于将外部服务中的数据同步为本地文件系统中的 Markdown。
 
-你可以连接 Notion、Gmail 等工具，在本地保留一份 Markdown 副本，用于搜索、备份、版本管理，或集成进自己的工作流。
+很多 AI 工作流会通过 MCP 或各服务自己的 API 直接连接 Notion、Gmail、Google Calendar 等工具。这种方式很灵活，但当你反复远程读取同一批信息时，通常会更慢、结果更不稳定，也更容易消耗更多 token。
+
+`syncdown` 选择先把这些内容拉到本地 Markdown。这样得到的本地知识库更适合搜索、备份、版本管理和接入个人工作流；如果需要，也可以再交给 [qmd](https://github.com/tobi/qmd) 这样的本地索引工具做后处理。另一个优势是，你可以把原本分散在多个服务里的信息集中到一个地方管理。
 
 ## Install
 
@@ -33,11 +35,6 @@ irm https://raw.githubusercontent.com/hjinco/syncdown/main/scripts/install.ps1 |
 [GitHub Releases page](https://github.com/hjinco/syncdown/releases)
 手动下载。
 
-安装脚本支持以下环境变量：
-
-- `SYNCDOWN_VERSION`：安装指定版本，例如 `0.1.0` 或 `v0.1.0`
-- `SYNCDOWN_INSTALL_DIR`：覆盖安装目录
-
 ## Quick Start
 
 ### 1. 启动 syncdown
@@ -62,8 +59,9 @@ syncdown
 
 打开 **Connectors**，配置一个或多个支持的数据源：
 
-- **Notion**：同步共享页面和数据源内容
+- **Notion**：同步你已授权 Notion 连接访问的页面和数据库
 - **Gmail**：通过 Google OAuth 同步 `Primary` 收件箱
+- **Google Calendar**：通过共享 Google OAuth 账号同步所选日历
 
 ### 4. 执行第一次同步
 
@@ -72,6 +70,7 @@ syncdown
 - **Run all**
 - **Run Notion**
 - **Run Gmail**
+- **Run Google Calendar**
 
 你也可以通过 CLI 完成最小化的无界面配置：
 
@@ -81,6 +80,15 @@ syncdown config set notion.enabled true
 printf '%s' "$NOTION_TOKEN" | syncdown config set notion.token --stdin
 syncdown run
 ```
+
+如果你想通过 CLI 持续重新运行所有已启用的 connector，可以使用 watch 模式：
+
+```sh
+syncdown run --watch
+syncdown run --watch --interval 5m
+```
+
+如果省略 `--interval`，默认值是 `1h`。
 
 ### 5. 确认结果
 
@@ -109,6 +117,26 @@ syncdown doctor
 notion/pages/project-plan-<source-id>.md
 notion/databases/tasks/task-item-<source-id>.md
 gmail/account-example-com/2026/03/weekly-update-<message-id>.md
+```
+
+渲染后的 Markdown 会包含 YAML frontmatter，其中包括 connector 元数据和各数据源特有的字段，因此同步后的数据既可作为可读正文使用，也可作为结构化元数据使用。
+
+```md
+---
+title: "Project Plan"
+source: "https://www.notion.so/..."
+created: "2026-03-17T01:23:45.000Z"
+updated: "2026-03-17T04:56:00.000Z"
+database: "Tasks"
+status: "In Progress"
+due_date: "2026-03-20"
+---
+
+# Project Plan
+
+- Confirm scope
+- Assign owners
+- Track due dates
 ```
 
 ## Common Commands

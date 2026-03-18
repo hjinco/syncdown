@@ -63,6 +63,15 @@ From the TUI home screen, open **Sync** and choose:
 
 Recent connector logs and run status stay visible in the same dashboard.
 
+If you want a headless CLI loop instead, run:
+
+```sh
+syncdown run --watch
+syncdown run --watch --interval 5m
+```
+
+If you omit `--interval`, the default is `1h`.
+
 ## 5. Confirm the result
 
 Check your output directory for Markdown files grouped by connector.

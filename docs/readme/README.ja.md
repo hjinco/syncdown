@@ -4,7 +4,9 @@
 
 `syncdown` は、外部サービスのデータをローカルファイルシステム上の Markdown に同期する対話型 CLI です。
 
-Notion や Gmail のようなツールを接続し、ローカルに Markdown のコピーを保持することで、検索、バックアップ、バージョン管理、自分のワークフローへの組み込みに使えます。
+多くの AI ワークフローでは、MCP や各サービスの API を通じて Notion、Gmail、Google Calendar のようなツールに直接接続します。この方法は柔軟ですが、同じ情報を繰り返しリモート取得すると、速度が落ちやすく、応答のばらつきも増え、トークン消費も大きくなりがちです。
+
+`syncdown` は、まずデータをローカル Markdown に取り込むアプローチを取ります。こうして作ったローカル知識ベースは、検索、バックアップ、バージョン管理、自分のワークフローへの組み込みに使いやすく、必要なら [qmd](https://github.com/tobi/qmd) のようなローカルインデクサで後処理することもできます。複数のサービスに散らばった情報を一か所で管理できる点も利点です。
 
 ## Install
 
@@ -33,11 +35,6 @@ irm https://raw.githubusercontent.com/hjinco/syncdown/main/scripts/install.ps1 |
 [GitHub Releases page](https://github.com/hjinco/syncdown/releases)
 からも利用できます。
 
-インストールスクリプトは次の環境変数をサポートします。
-
-- `SYNCDOWN_VERSION`: `0.1.0` や `v0.1.0` のような特定バージョンを指定
-- `SYNCDOWN_INSTALL_DIR`: インストール先ディレクトリを上書き
-
 ## Quick Start
 
 ### 1. syncdown を起動
@@ -62,8 +59,9 @@ TUI で **Output** を開き、Markdown の出力先を選択します。
 
 **Connectors** を開き、対応しているソースを 1 つ以上設定します。
 
-- **Notion**: 共有ページとデータソースの内容を同期
+- **Notion**: 接続した Notion 連携にアクセスを許可したページとデータベースを同期
 - **Gmail**: Google OAuth を使って `Primary` 受信トレイを同期
+- **Google Calendar**: 共有 Google OAuth アカウント経由で選択したカレンダーを同期
 
 ### 4. 最初の同期を実行
 
@@ -72,6 +70,7 @@ TUI のホーム画面で **Sync** を開き、次のいずれかを実行しま
 - **Run all**
 - **Run Notion**
 - **Run Gmail**
+- **Run Google Calendar**
 
 最小限のヘッドレス設定は CLI からも行えます。
 
@@ -81,6 +80,15 @@ syncdown config set notion.enabled true
 printf '%s' "$NOTION_TOKEN" | syncdown config set notion.token --stdin
 syncdown run
 ```
+
+CLI から有効なすべてのコネクタを継続的に再実行したい場合は、watch モードを使います。
+
+```sh
+syncdown run --watch
+syncdown run --watch --interval 5m
+```
+
+`--interval` を省略した場合の既定値は `1h` です。
 
 ### 5. 結果を確認
 
@@ -109,6 +117,26 @@ syncdown doctor
 notion/pages/project-plan-<source-id>.md
 notion/databases/tasks/task-item-<source-id>.md
 gmail/account-example-com/2026/03/weekly-update-<message-id>.md
+```
+
+レンダリングされた Markdown には、コネクタのメタデータとソース固有の項目が YAML frontmatter として含まれるため、同期したデータを本文と構造化メタデータの両方として扱えます。
+
+```md
+---
+title: "Project Plan"
+source: "https://www.notion.so/..."
+created: "2026-03-17T01:23:45.000Z"
+updated: "2026-03-17T04:56:00.000Z"
+database: "Tasks"
+status: "In Progress"
+due_date: "2026-03-20"
+---
+
+# Project Plan
+
+- Confirm scope
+- Assign owners
+- Track due dates
 ```
 
 ## Common Commands

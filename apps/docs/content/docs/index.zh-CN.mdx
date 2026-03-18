@@ -1,0 +1,95 @@
+---
+title: 介绍
+description: 了解 syncdown 做什么、能同步什么，以及应该从哪种工作流开始。
+---
+
+# 介绍
+
+`syncdown` 会从外部服务拉取内容，并将其保存为你本地文件系统中的 Markdown 文件。
+
+很多 AI 工作流会通过 MCP 或各服务自己的 API 直接读取 Notion、Gmail、Google Calendar 等工具。这种方式很灵活，但如果反复远程读取同一批信息，通常会比直接处理本地文件更慢，而且 token 成本也更高。
+
+`syncdown` 适合那些希望把笔记和消息带出浏览器、放到本地文件夹里处理的人。你可以在本地目录中搜索、备份、同步、交给其他工具处理，或者用 [qmd](https://github.com/tobi/qmd) 这样的本地搜索工具建立索引。它也能把原本分散在多个服务里的信息集中到一个地方管理。
+
+当前 `syncdown` 包括：
+
+- 用于安装和日常同步控制的全屏 TUI
+- 面向自动化和远程环境的无界面 config 命令
+- 用于同步你已授权 Notion 连接访问的页面和数据库的 Notion connector
+- 用于 `Primary` 收件箱消息的 Gmail connector
+- 用于选定日历以及事件/重复系列导出的 Google Calendar connector
+- 按 connector 分组写入本地文件的 Markdown 渲染
+
+## 它能做什么
+
+从整体流程看，`syncdown` 可以帮助你：
+
+1. 连接 Notion、Gmail、Google Calendar 等受支持的服务。
+2. 选择本地输出目录。
+3. 从这些服务中抓取内容。
+4. 按可预测的目录结构写出每个来源对应的 Markdown 文件。
+
+这让它适合用于本地知识库、归档、搜索索引、备份，以及围绕普通文件构建的个人工作流。
+
+## 可以同步什么
+
+### Notion
+
+- 你已授权 Notion 连接访问的页面
+- 来自你已授权 Notion 连接访问的数据库的页面
+- Token 认证
+- OAuth 认证
+
+### Gmail
+
+- 每条消息对应一个 Markdown 文件
+- Google OAuth
+- 默认 `Primary`，可选 `Primary + Important`
+- 基于 Gmail history ID 的增量更新
+
+### Google Calendar
+
+- 每个事件或重复系列对应一个 Markdown 文件
+- 共享 Google OAuth
+- 选择性日历同步
+- 基于每个日历 sync token 的增量更新
+
+## 输出长什么样
+
+渲染后的文件会按 connector 分组，便于检查和管理。
+
+典型路径如下：
+
+```text
+notion/pages/project-plan-<source-id>.md
+notion/databases/tasks/task-item-<source-id>.md
+gmail/account-example-com/2026/03/weekly-update-<message-id>.md
+google-calendar/primary/2026/03/team-sync-<calendar-id:event-id>.md
+```
+
+每个文档都会以 YAML frontmatter 开头，用来保留 connector 元数据和数据源特有字段。具体字段取决于 connector。
+
+```md
+---
+title: "Project Plan"
+source: "https://www.notion.so/..."
+created: "2026-03-17T01:23:45.000Z"
+updated: "2026-03-17T04:56:00.000Z"
+database: "Tasks"
+status: "In Progress"
+due_date: "2026-03-20"
+---
+
+# Project Plan
+
+- Confirm scope
+- Assign owners
+- Track due dates
+```
+
+## 从哪里开始
+
+- 如果你还没有安装二进制文件，请先看 [Installation](/docs/installation)。
+- 如果你想用 TUI 走最快的配置路径，请看 [Getting Started](/docs/getting-started)。
+- 如果你需要无界面的 CLI 配置流程，请看 [Configuration](/docs/configuration)。
+- 如果你需要命令参考，请看 [CLI](/docs/cli)。
