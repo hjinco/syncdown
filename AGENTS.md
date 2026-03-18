@@ -1,1 +1,1 @@
-- After modifying any file, always run `lint:fix`.
+- After modifying any `ts` or `json` file, always run `bun lint:fix`.
