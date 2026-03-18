@@ -73,12 +73,10 @@ export interface GmailAdapter {
 	iterateInboxMessageIds?(
 		credentials: GmailCredentials,
 		syncFilter: GmailSyncFilter,
-		limit?: number,
 	): AsyncIterable<string>;
 	listInboxMessageIds(
 		credentials: GmailCredentials,
 		syncFilter: GmailSyncFilter,
-		limit?: number,
 	): Promise<string[]>;
 	listHistory(
 		credentials: GmailCredentials,
@@ -199,9 +197,7 @@ class OfficialGmailAdapter implements GmailAdapter {
 	async *iterateInboxMessageIds(
 		credentials: GmailCredentials,
 		syncFilter: GmailSyncFilter,
-		limit?: number,
 	): AsyncIterable<string> {
-		let yielded = 0;
 		let pageToken: string | undefined;
 
 		do {
@@ -219,10 +215,6 @@ class OfficialGmailAdapter implements GmailAdapter {
 			for (const message of response.messages ?? []) {
 				if (message.id) {
 					yield message.id;
-					yielded += 1;
-					if (limit && yielded >= limit) {
-						return;
-					}
 				}
 			}
 
@@ -233,13 +225,11 @@ class OfficialGmailAdapter implements GmailAdapter {
 	async listInboxMessageIds(
 		credentials: GmailCredentials,
 		syncFilter: GmailSyncFilter,
-		limit?: number,
 	): Promise<string[]> {
 		const ids: string[] = [];
 		for await (const id of this.iterateInboxMessageIds(
 			credentials,
 			syncFilter,
-			limit,
 		)) {
 			ids.push(id);
 		}
@@ -650,19 +640,6 @@ function normalizePositiveInteger(
 		: fallback;
 }
 
-function normalizeInitialSyncLimit(
-	value: number | undefined,
-	fallback: number,
-): number | undefined {
-	if (typeof value === "number" && Number.isInteger(value) && value === 0) {
-		return undefined;
-	}
-
-	return typeof value === "number" && Number.isInteger(value) && value > 0
-		? value
-		: fallback;
-}
-
 function toAsyncIterable<T>(
 	values: AsyncIterable<T> | Iterable<T>,
 ): AsyncIterable<T> {
@@ -742,14 +719,12 @@ async function* iterateInboxMessageIds(
 	adapter: GmailAdapter,
 	credentials: GmailCredentials,
 	syncFilter: GmailSyncFilter,
-	limit?: number,
 	throwIfCancelled?: () => void,
 ): AsyncIterable<string> {
 	if (adapter.iterateInboxMessageIds) {
 		for await (const id of adapter.iterateInboxMessageIds(
 			credentials,
 			syncFilter,
-			limit,
 		)) {
 			throwIfCancelled?.();
 			yield id;
@@ -757,11 +732,7 @@ async function* iterateInboxMessageIds(
 		return;
 	}
 
-	for (const id of await adapter.listInboxMessageIds(
-		credentials,
-		syncFilter,
-		limit,
-	)) {
+	for (const id of await adapter.listInboxMessageIds(credentials, syncFilter)) {
 		throwIfCancelled?.();
 		yield id;
 	}
@@ -781,14 +752,9 @@ class GmailConnector implements Connector {
 			requiredScopes: GMAIL_REQUIRED_SCOPES,
 		},
 	] as const;
-	private static readonly DEFAULT_INITIAL_SYNC_LIMIT = 5000;
 	private static readonly DEFAULT_FETCH_CONCURRENCY = 10;
 
 	constructor(private readonly adapter: GmailAdapter) {}
-
-	private static formatInitialSyncLimit(limit: number | undefined): string {
-		return limit === undefined ? "all" : String(limit);
-	}
 
 	async validate(request: ConnectorSyncRequest): Promise<HealthCheck> {
 		if (!request.integration.enabled) {
@@ -839,10 +805,6 @@ class GmailConnector implements Connector {
 		const profileBeforeRun = await this.adapter.getProfile(credentials);
 		const historyIdBeforeRun = profileBeforeRun.historyId;
 		const accountEmail = resolveAccountEmail(request, profileBeforeRun);
-		const initialSyncLimit = normalizeInitialSyncLimit(
-			request.integration.config.initialSyncLimit,
-			GmailConnector.DEFAULT_INITIAL_SYNC_LIMIT,
-		);
 		const fetchConcurrency = normalizePositiveInteger(
 			request.integration.config.fetchConcurrency,
 			GmailConnector.DEFAULT_FETCH_CONCURRENCY,
@@ -875,7 +837,7 @@ class GmailConnector implements Connector {
 			request.setProgress({
 				mode: "indeterminate",
 				phase: "Scanning inbox",
-				detail: `processed ${processedMessages} | limit ${initialSyncLimit} | concurrency ${fetchConcurrency}`,
+				detail: `processed ${processedMessages} | concurrency ${fetchConcurrency}`,
 				completed: null,
 				total: null,
 				unit: "messages",
@@ -895,15 +857,11 @@ class GmailConnector implements Connector {
 		if (!since) {
 			publishInboxScanProgress();
 			request.io.write(
-				`Gmail progress: streaming initial sync limit=${GmailConnector.formatInitialSyncLimit(initialSyncLimit)} concurrency=${fetchConcurrency}`,
+				`Gmail progress: streaming inbox scan concurrency=${fetchConcurrency}`,
 			);
 			await processWithConcurrency(
-				iterateInboxMessageIds(
-					this.adapter,
-					credentials,
-					syncFilter,
-					initialSyncLimit,
-					() => request.throwIfCancelled(),
+				iterateInboxMessageIds(this.adapter, credentials, syncFilter, () =>
+					request.throwIfCancelled(),
 				),
 				fetchConcurrency,
 				async (messageId) => {
@@ -947,15 +905,11 @@ class GmailConnector implements Connector {
 					"Gmail history cursor expired. Falling back to a full scoped rescan.",
 				);
 				request.io.write(
-					`Gmail progress: streaming initial sync limit=${GmailConnector.formatInitialSyncLimit(initialSyncLimit)} concurrency=${fetchConcurrency}`,
+					`Gmail progress: streaming inbox scan concurrency=${fetchConcurrency}`,
 				);
 				await processWithConcurrency(
-					iterateInboxMessageIds(
-						this.adapter,
-						credentials,
-						syncFilter,
-						initialSyncLimit,
-						() => request.throwIfCancelled(),
+					iterateInboxMessageIds(this.adapter, credentials, syncFilter, () =>
+						request.throwIfCancelled(),
 					),
 					fetchConcurrency,
 					async (messageId) => {

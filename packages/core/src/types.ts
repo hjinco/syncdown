@@ -72,7 +72,6 @@ export type ConnectionConfig =
 export type GmailSyncFilter = "primary" | "primary-important";
 
 export interface GmailIntegrationSettings {
-	initialSyncLimit?: number;
 	fetchConcurrency?: number;
 	syncFilter?: GmailSyncFilter;
 }

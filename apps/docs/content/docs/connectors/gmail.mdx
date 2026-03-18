@@ -69,8 +69,6 @@ The TUI opens the Google OAuth client setup page so you can create a client or c
 syncdown config set gmail.enabled true
 syncdown config set gmail.interval 1h
 syncdown config set gmail.syncFilter primary
-syncdown config set gmail.initialSyncLimit 5000
-syncdown config set gmail.initialSyncLimit 0
 syncdown config set gmail.fetchConcurrency 10
 
 printf '%s' "$GOOGLE_CLIENT_ID" | syncdown config set google.clientId --stdin
@@ -90,7 +88,7 @@ The current Gmail connector:
 
 ## Incremental behavior
 
-On the first run, the connector streams message IDs from the active Gmail filter and caps the initial pass with `gmail.initialSyncLimit`.
+On the first run, the connector streams message IDs from the active Gmail filter and scans the full matching inbox.
 
 On later runs, it uses Gmail history IDs to fetch only changed messages.
 
@@ -99,17 +97,6 @@ If the stored Gmail history cursor expires, or if the stored cursor came from an
 If a message disappears or stops matching the active Gmail filter, the corresponding local Markdown file is deleted.
 
 ## Tuning options
-
-### `gmail.initialSyncLimit`
-
-Controls how many filtered Gmail messages are considered during the first full sync.
-Set it to `0` to sync all matching messages.
-
-Default:
-
-```text
-5000
-```
 
 ### `gmail.fetchConcurrency`
 
