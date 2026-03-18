@@ -42,12 +42,10 @@ resolve_tag() {
         minor = parts[2] + 0
         patch = parts[3] + 0
 
-        if (
-          best == "" ||
-          major > best_major ||
-          (major == best_major && minor > best_minor) ||
-          (major == best_major && minor == best_minor && patch > best_patch)
-        ) {
+        if (best == "" ||
+            major > best_major ||
+            (major == best_major && minor > best_minor) ||
+            (major == best_major && minor == best_minor && patch > best_patch)) {
           best = $0
           best_major = major
           best_minor = minor
