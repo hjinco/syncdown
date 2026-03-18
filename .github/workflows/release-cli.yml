@@ -4,6 +4,17 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      cli_version:
+        description: Current CLI version on main to release or republish
+        required: true
+        type: string
+      force_republish:
+        description: Allow replacing assets on an existing GitHub release
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -23,6 +34,8 @@ jobs:
       should_release: ${{ steps.plan.outputs.should_release }}
       cli_version: ${{ steps.plan.outputs.cli_version }}
       cli_tag: ${{ steps.plan.outputs.cli_tag }}
+      force_republish: ${{ steps.plan.outputs.force_republish }}
+      release_ref: ${{ steps.plan.outputs.release_ref }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,26 +50,36 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Sync release PR
+      - name: Sync CLI release PR
         id: changesets
+        if: github.event_name == 'push'
         uses: changesets/action@v1
         with:
-          version: bun run release:version
+          version: bun run release:cli:version
           commit: "release: cli"
           title: "release: cli"
           createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Detect CLI release commit
+      - name: Detect CLI release plan
         id: plan
         shell: bash
         run: |
+          event_name="${GITHUB_EVENT_NAME}"
+          requested_version="${{ inputs.cli_version }}"
+          force_republish="${{ inputs.force_republish && 'true' || 'false' }}"
           cli_version=$(bun -e "console.log(JSON.parse(await Bun.file('./apps/cli/package.json').text()).version)")
           cli_tag="cli-v${cli_version}"
           should_release=false
+          release_ref="${GITHUB_SHA}"
 
-          if [[ "${{ steps.changesets.outputs.hasChangesets }}" == "false" ]]; then
+          tag_exists=false
+          if git ls-remote --exit-code --tags origin "refs/tags/${cli_tag}" >/dev/null 2>&1; then
+            tag_exists=true
+          fi
+
+          if [[ "${event_name}" == "push" && "${{ steps.changesets.outputs.hasChangesets }}" == "false" ]]; then
             package_changed=false
             if git rev-parse HEAD^ >/dev/null 2>&1; then
               if ! git diff --quiet HEAD^ HEAD -- apps/cli/package.json; then
@@ -64,19 +87,40 @@ jobs:
               fi
             fi
 
-            tag_exists=false
-            if git ls-remote --exit-code --tags origin "refs/tags/${cli_tag}" >/dev/null 2>&1; then
-              tag_exists=true
-            fi
-
             if [[ "$package_changed" == "true" && "$tag_exists" == "false" ]]; then
               should_release=true
             fi
+          elif [[ "${event_name}" == "workflow_dispatch" ]]; then
+            if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+              echo "Manual releases only support rerunning the current CLI version from the main branch." >&2
+              exit 1
+            fi
+
+            if [[ -z "${requested_version}" ]]; then
+              echo "cli_version input is required." >&2
+              exit 1
+            fi
+
+            if [[ "${requested_version}" != "${cli_version}" ]]; then
+              echo "Requested version ${requested_version} does not match the current CLI version on main (${cli_version})." >&2
+              exit 1
+            fi
+
+            should_release=true
+
+            if [[ "${tag_exists}" == "true" ]]; then
+              release_ref="${cli_tag}"
+            fi
+          else
+            echo "Unsupported event ${event_name}." >&2
+            exit 1
           fi
 
           echo "cli_version=${cli_version}" >> "$GITHUB_OUTPUT"
           echo "cli_tag=${cli_tag}" >> "$GITHUB_OUTPUT"
           echo "should_release=${should_release}" >> "$GITHUB_OUTPUT"
+          echo "force_republish=${force_republish}" >> "$GITHUB_OUTPUT"
+          echo "release_ref=${release_ref}" >> "$GITHUB_OUTPUT"
 
   verify:
     needs: plan-release
@@ -88,6 +132,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan-release.outputs.release_ref }}
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -137,6 +184,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan-release.outputs.release_ref }}
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -146,15 +196,15 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build release binary
+      - name: Build CLI release binary
         env:
           SYNCDOWN_TARGET_PLATFORM: ${{ matrix.target }}
-        run: bun run release:binary:local
+        run: bun run release:cli:binary:local
 
-      - name: Smoke test release binary
-        run: bun run release:binary:smoke
+      - name: Smoke test CLI release binary
+        run: bun run release:cli:binary:smoke
 
-      - name: Upload release asset
+      - name: Upload CLI release asset
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_dir }}
@@ -176,6 +226,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ needs.plan-release.outputs.release_ref }}
           fetch-depth: 0
 
       - name: Create CLI tag
@@ -189,12 +240,65 @@ jobs:
           git tag "${CLI_TAG}" "${GITHUB_SHA}"
           git push origin "refs/tags/${CLI_TAG}"
 
-      - name: Download release assets
+      - name: Inspect existing GitHub release
+        id: inspect_release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const release = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: process.env.CLI_TAG,
+              });
+              core.setOutput("exists", "true");
+              core.setOutput("id", String(release.data.id));
+              core.setOutput("asset_count", String(release.data.assets.length));
+            } catch (error) {
+              if (error.status === 404) {
+                core.setOutput("exists", "false");
+                core.setOutput("id", "");
+                core.setOutput("asset_count", "0");
+                return;
+              }
+
+              throw error;
+            }
+
+      - name: Guard against accidental republish
+        if: steps.inspect_release.outputs.exists == 'true' && needs.plan-release.outputs.force_republish != 'true'
+        shell: bash
+        run: |
+          echo "GitHub release ${CLI_TAG} already exists. Re-run workflow_dispatch with force_republish=true to replace assets." >&2
+          exit 1
+
+      - name: Delete existing release assets
+        if: steps.inspect_release.outputs.exists == 'true' && needs.plan-release.outputs.force_republish == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const releaseId = Number("${{ steps.inspect_release.outputs.id }}");
+            const { data: assets } = await github.rest.repos.listReleaseAssets({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: releaseId,
+              per_page: 100,
+            });
+
+            for (const asset of assets) {
+              await github.rest.repos.deleteReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                asset_id: asset.id,
+              });
+            }
+
+      - name: Download CLI release assets
         uses: actions/download-artifact@v4
         with:
           path: artifacts/release-assets
 
-      - name: Build checksum manifest
+      - name: Build CLI checksum manifest
         run: |
           mkdir -p artifacts/release-assets/final
           find artifacts/release-assets -type f \( -name '*.tar.gz' -o -name '*.zip' \) -print0 \
@@ -203,12 +307,13 @@ jobs:
             | sed 's#  artifacts/release-assets/[^/]*/##' \
             > "artifacts/release-assets/final/syncdown-${CLI_TAG}-SHA256SUMS.txt"
 
-      - name: Publish GitHub release
+      - name: Publish CLI GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.CLI_TAG }}
           name: CLI v${{ env.CLI_VERSION }}
           generate_release_notes: true
+          overwrite_files: true
           files: |
             artifacts/release-assets/**/*.tar.gz
             artifacts/release-assets/**/*.zip

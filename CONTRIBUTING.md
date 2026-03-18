@@ -86,8 +86,8 @@ The release workflow bumps `apps/cli/package.json`, creates a `cli-vX.Y.Z` tag, 
 For local release verification:
 
 ```sh
-bun run release:binary:local
-bun run release:binary:smoke
+bun run release:cli:binary:local
+bun run release:cli:binary:smoke
 ```
 
 Release binaries are written to `artifacts/release`.

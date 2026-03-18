@@ -19,9 +19,9 @@
 		"check": "biome check .",
 		"typecheck": "turbo run typecheck && bun x tsc -p ./scripts/tsconfig.json --pretty false",
 		"test": "turbo run test",
-		"release:version": "changeset version",
-		"release:binary:local": "bun ./scripts/build-release-binary.ts",
-		"release:binary:smoke": "bun ./scripts/smoke-release-binary.ts"
+		"release:cli:version": "changeset version",
+		"release:cli:binary:local": "bun ./scripts/build-cli-release-binary.ts",
+		"release:cli:binary:smoke": "bun ./scripts/smoke-cli-release-binary.ts"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.4.7",
