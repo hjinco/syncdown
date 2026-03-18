@@ -31,6 +31,7 @@ import {
 	stageProviderDisconnect,
 	syncDraftState,
 } from "./state.js";
+import { withHomeDirectory } from "./test-support.js";
 
 function createConfig(): SyncdownConfig {
 	const config = createDefaultConfig();
@@ -95,21 +96,6 @@ function createSecretsStore(values = new Map<string, string>()): SecretsStore {
 			return "memory";
 		},
 	};
-}
-
-function withHomeDirectory<T>(homeDir: string, run: () => T): T {
-	const previousHome = Bun.env.HOME;
-	Bun.env.HOME = homeDir;
-
-	try {
-		return run();
-	} finally {
-		if (previousHome === undefined) {
-			delete Bun.env.HOME;
-		} else {
-			Bun.env.HOME = previousHome;
-		}
-	}
 }
 
 test("editing connector state updates the config", () => {

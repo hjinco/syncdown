@@ -30,6 +30,7 @@ import {
 	createDraftState,
 	normalizeOutputPath,
 } from "./state.js";
+import { withHomeDirectory } from "./test-support.js";
 import {
 	createConfirmDisconnectRoute,
 	createConnectorAuthRoute,
@@ -497,24 +498,6 @@ function createDefaultAuthService(): TuiAuthService {
 
 function readConfigFile(paths: AppPaths): SyncdownConfig {
 	return JSON.parse(readFileSync(paths.configPath, "utf8")) as SyncdownConfig;
-}
-
-async function withHomeDirectory<T>(
-	homeDir: string,
-	run: () => Promise<T>,
-): Promise<T> {
-	const previousHome = Bun.env.HOME;
-	Bun.env.HOME = homeDir;
-
-	try {
-		return await run();
-	} finally {
-		if (previousHome === undefined) {
-			delete Bun.env.HOME;
-		} else {
-			Bun.env.HOME = previousHome;
-		}
-	}
 }
 
 function createUpdaterStub(
