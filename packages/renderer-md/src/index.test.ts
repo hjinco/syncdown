@@ -112,7 +112,7 @@ test("renderer exposes connector-specific versions", () => {
 	expect(renderer.getVersion("google-calendar")).toBe("1");
 });
 
-test("calendar paths use event ids in filenames while preserving calendar-specific source ids", () => {
+test("calendar paths use event ids for filenames when available", () => {
 	const renderer = createMarkdownRenderer();
 	const document = renderer.render(createCalendarSnapshot());
 

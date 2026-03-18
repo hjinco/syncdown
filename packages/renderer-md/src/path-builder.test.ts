@@ -33,7 +33,7 @@ test("buildRelativePath uses unknown buckets for gmail documents without created
 	);
 });
 
-test("buildRelativePath falls back to createdAt for calendar buckets", () => {
+test("buildRelativePath uses calendarEventId for filenames and createdAt for calendar buckets", () => {
 	const document = createSnapshot({
 		connectorId: "google-calendar",
 		sourceId: "primary:event-123",
