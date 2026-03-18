@@ -700,10 +700,7 @@ function summarizeLogMessage(message: string): string {
 		return `Processing pages ${processed}/${discovered} | saved ${saved} | skipped ${skipped} | failed ${failed}`;
 	}
 
-	if (
-		message.startsWith("Gmail progress: streaming initial sync") ||
-		message.startsWith("Gmail progress: streaming inbox scan")
-	) {
+	if (message.startsWith("Gmail progress: streaming inbox scan")) {
 		return "Scanning inbox for the first sync";
 	}
 
