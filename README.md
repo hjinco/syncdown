@@ -4,7 +4,9 @@ Languages: **English** | [한국어](./docs/readme/README.ko.md) | [日本語](.
 
 `syncdown` is an interactive CLI that syncs external service data into Markdown on your local filesystem.
 
-Use it to connect tools like Notion, Gmail, and Google Calendar, then keep a local Markdown copy that you can browse, search, back up, or commit into your own workflow.
+Many AI workflows connect directly to services like Notion, Gmail, or Google Calendar through MCP or provider APIs. That works, but repeated remote retrieval is often slower, less predictable, and more token-expensive than working from a prepared local knowledge base.
+
+`syncdown` takes a different approach: pull that content into local Markdown first, then browse it, search it, back it up, commit it, or index it with local tools such as [qmd](https://github.com/tobi/qmd). The result is a faster, more portable knowledge base that keeps information from multiple services in one place.
 
 ## Install
 
@@ -32,11 +34,6 @@ irm https://raw.githubusercontent.com/hjinco/syncdown/main/scripts/install.ps1 |
 Manual downloads are also available from the
 [GitHub Releases page](https://github.com/hjinco/syncdown/releases).
 
-The install scripts support:
-
-- `SYNCDOWN_VERSION` to install a specific version such as `0.1.0`, `v0.1.0`, or `cli-v0.1.0`
-- `SYNCDOWN_INSTALL_DIR` to override the install directory
-
 ## Quick Start
 
 ### 1. Launch syncdown
@@ -59,7 +56,7 @@ Treat the Markdown files and connector folders under that output tree as `syncdo
 
 Open **Connectors** and set up one or both of the supported sources:
 
-- **Notion** for shared pages and shared data source content
+- **Notion** for pages and databases you've allowed the Notion connection to access
 - **Gmail** for `Primary` inbox sync through Google OAuth
 - **Google Calendar** for selected calendars through the shared Google OAuth account
 
@@ -80,6 +77,15 @@ syncdown config set notion.enabled true
 printf '%s' "$NOTION_TOKEN" | syncdown config set notion.token --stdin
 syncdown run
 ```
+
+To keep re-running all enabled connectors from the CLI, use watch mode:
+
+```sh
+syncdown run --watch
+syncdown run --watch --interval 5m
+```
+
+If you omit `--interval`, the default is `1h`.
 
 ### 5. Confirm the result
 
@@ -111,7 +117,25 @@ gmail/account-example-com/2026/03/weekly-update-<message-id>.md
 google-calendar/primary/2026/03/team-sync-<calendar-id:event-id>.md
 ```
 
-Notion exports include YAML frontmatter with common fields such as `title`, `source`, `created`, `updated`, and `database`, plus flattened top-level keys for normalized Notion property names like `status` or `due_date`.
+Rendered Markdown includes YAML frontmatter with connector metadata and source-specific fields, so synced data stays available as both readable content and structured metadata.
+
+```md
+---
+title: "Project Plan"
+source: "https://www.notion.so/..."
+created: "2026-03-17T01:23:45.000Z"
+updated: "2026-03-17T04:56:00.000Z"
+database: "Tasks"
+status: "In Progress"
+due_date: "2026-03-20"
+---
+
+# Project Plan
+
+- Confirm scope
+- Assign owners
+- Track due dates
+```
 
 ## Common Commands
 

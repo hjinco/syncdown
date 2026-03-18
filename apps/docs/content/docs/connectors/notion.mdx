@@ -106,17 +106,17 @@ printf '%s' "$NOTION_REFRESH_TOKEN" | syncdown config set notion.oauth.refreshTo
 The connector:
 
 - validates the chosen token or OAuth credentials
-- discovers shared Notion pages
-- discovers shared data sources
-- queries pages inside each shared data source
+- discovers Notion pages the selected integration or OAuth-connected account can access
+- discovers Notion databases the selected integration or OAuth-connected account can access
+- queries pages inside each discovered database
 - fetches page metadata and Markdown for each candidate page
 
-Pages from shared data sources are written into database-specific directories when the data source name is available.
+Pages from discovered databases are written into database-specific directories when the database name is available.
 
 Rendered Notion Markdown includes YAML frontmatter with:
 
 - common fields such as `title`, `source`, `created`, `updated`
-- `database` when the page came from a shared data source
+- `database` when the page came from a synced database
 - flattened top-level keys for Notion properties using frontmatter-friendly normalized names such as `status`, `due_date`, or `담당자_이름`
 
 Nested `properties:` frontmatter is not emitted.
@@ -125,12 +125,12 @@ Nested `properties:` frontmatter is not emitted.
 
 The connector stores a cursor between runs.
 
-For shared data sources, that cursor is used to request incremental page candidates. Shared top-level pages are still discovered on each run.
+For synced databases, that cursor is used to request incremental page candidates. Top-level pages the selected integration or OAuth-connected account can access are still discovered on each run.
 
 The connector also keeps stored snapshots in SQLite so it can avoid unnecessary rewrites when the source and render versions have not changed.
 
 ## Current caveats
 
-- Only content shared with the selected integration or OAuth-connected account is visible.
-- The current implementation targets shared pages and shared data sources, not every possible Notion object type.
+- Only content the selected integration or OAuth-connected account has access to is visible.
+- The current implementation targets accessible pages and databases, not every possible Notion object type.
 - Large or unusually complex Notion content should be validated in your workspace before relying on it for production exports.

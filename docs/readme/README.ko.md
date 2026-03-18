@@ -4,7 +4,9 @@
 
 `syncdown`은 외부 서비스 데이터를 로컬 파일 시스템의 Markdown으로 동기화하는 인터랙티브 CLI입니다.
 
-Notion, Gmail 같은 도구를 연결한 뒤 로컬에 Markdown 사본을 유지해서 검색, 백업, 버전 관리, 개인 워크플로우 연동에 활용할 수 있습니다.
+많은 AI 워크플로우는 MCP나 각 서비스 API를 통해 Notion, Gmail, Google Calendar 같은 도구에 직접 연결합니다. 이런 방식은 유연하지만, 같은 정보를 반복해서 원격 조회할수록 속도가 느려지고 응답 편차가 커지며 토큰도 더 많이 쓰기 쉽습니다.
+
+`syncdown`은 먼저 데이터를 로컬 Markdown으로 가져오는 방식을 택합니다. 이렇게 만들어 둔 로컬 지식 베이스는 검색, 백업, 버전 관리, 개인 워크플로우 연동에 쓰기 쉽고, 필요하면 [qmd](https://github.com/tobi/qmd) 같은 로컬 인덱서로 후처리할 수도 있습니다. 여러 서비스에 흩어진 정보를 한 곳에서 관리할 수 있다는 점도 장점입니다.
 
 ## Install
 
@@ -32,11 +34,6 @@ irm https://raw.githubusercontent.com/hjinco/syncdown/main/scripts/install.ps1 |
 수동 다운로드는
 [GitHub Releases page](https://github.com/hjinco/syncdown/releases)에서도 가능합니다.
 
-설치 스크립트는 다음 환경 변수를 지원합니다.
-
-- `SYNCDOWN_VERSION`: `0.1.0` 또는 `v0.1.0` 같은 특정 버전 설치
-- `SYNCDOWN_INSTALL_DIR`: 설치 디렉터리 재정의
-
 ## Quick Start
 
 ### 1. syncdown 실행
@@ -61,7 +58,7 @@ TUI에서 **Output**을 열고 Markdown 출력 위치를 선택합니다.
 
 **Connectors**를 열고 지원되는 소스를 하나 이상 설정합니다.
 
-- **Notion**: 공유된 페이지와 데이터 소스 콘텐츠 동기화
+- **Notion**: 사용자가 Notion 연결에 접근을 허용한 페이지와 데이터베이스 동기화
 - **Gmail**: Google OAuth 기반 `Primary` 받은편지함 동기화
 
 ### 4. 첫 동기화 실행
@@ -80,6 +77,15 @@ syncdown config set notion.enabled true
 printf '%s' "$NOTION_TOKEN" | syncdown config set notion.token --stdin
 syncdown run
 ```
+
+CLI에서 활성화된 모든 커넥터를 계속 다시 실행하려면 watch 모드를 사용합니다.
+
+```sh
+syncdown run --watch
+syncdown run --watch --interval 5m
+```
+
+`--interval`을 생략하면 기본값은 `1h`입니다.
 
 ### 5. 결과 확인
 
@@ -108,6 +114,26 @@ syncdown doctor
 notion/pages/project-plan-<source-id>.md
 notion/databases/tasks/task-item-<source-id>.md
 gmail/account-example-com/2026/03/weekly-update-<message-id>.md
+```
+
+렌더링된 Markdown에는 커넥터 메타데이터와 소스별 필드가 YAML frontmatter로 함께 들어가므로, 동기화된 데이터는 읽기용 본문과 구조화된 메타데이터 둘 다로 활용할 수 있습니다.
+
+```md
+---
+title: "Project Plan"
+source: "https://www.notion.so/..."
+created: "2026-03-17T01:23:45.000Z"
+updated: "2026-03-17T04:56:00.000Z"
+database: "Tasks"
+status: "In Progress"
+due_date: "2026-03-20"
+---
+
+# Project Plan
+
+- Confirm scope
+- Assign owners
+- Track due dates
 ```
 
 ## Common Commands

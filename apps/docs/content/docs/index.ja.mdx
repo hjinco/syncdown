@@ -1,0 +1,95 @@
+---
+title: 紹介
+description: syncdown が何をするのか、何を同期できるのか、どのワークフローから始めるべきかを説明します。
+---
+
+# 紹介
+
+`syncdown` は外部サービスのコンテンツを取得し、ローカルファイルシステム上の Markdown ファイルとして保存します。
+
+多くの AI ワークフローでは、MCP や各サービスの API を通じて Notion、Gmail、Google Calendar のようなツールを直接参照します。これは柔軟ですが、同じ情報を何度もリモートで読む使い方では、ローカルファイルから扱うより遅く、トークン消費も大きくなりがちです。
+
+`syncdown` は、ノートやメッセージをブラウザの外に出してローカルフォルダで扱いたい人向けのツールです。ローカルフォルダに保存して検索、バックアップ、同期、ほかのツールへの受け渡し、あるいは [qmd](https://github.com/tobi/qmd) のようなローカル検索ツールでのインデックス化に使えます。複数のサービスに散らばった情報を一か所で管理できるのも利点です。
+
+現在の `syncdown` には次が含まれます。
+
+- セットアップと日常的な同期制御のためのフルスクリーン TUI
+- 自動化やリモート環境向けのヘッドレス config コマンド
+- 接続した Notion 連携にアクセスを許可したページとデータベース向けの Notion コネクタ
+- `Primary` 受信トレイメッセージのための Gmail コネクタ
+- 選択したカレンダーとイベント/繰り返しシリーズ書き出しのための Google Calendar コネクタ
+- コネクタ単位のファイルへ出力するローカル Markdown レンダリング
+
+## できること
+
+大まかには、`syncdown` は次を助けます。
+
+1. Notion、Gmail、Google Calendar などの対応サービスに接続する。
+2. ローカルの出力ディレクトリを選ぶ。
+3. それらのサービスからコンテンツを取得する。
+4. 予測しやすいフォルダ構造に、ソースごとの Markdown ファイルを書き出す。
+
+これにより、ローカル知識ベース、アーカイブ、検索インデックス、バックアップ、プレーンファイル中心の個人ワークフローに役立ちます。
+
+## 同期できるもの
+
+### Notion
+
+- 接続した Notion 連携にアクセスを許可したページ
+- 接続した Notion 連携にアクセスを許可したデータベースから返されるページ
+- トークン認証
+- OAuth 認証
+
+### Gmail
+
+- メッセージごとに 1 つの Markdown ファイル
+- Google OAuth
+- 既定では `Primary`、必要に応じて `Primary + Important`
+- Gmail history ID を使った増分更新
+
+### Google Calendar
+
+- イベントまたは繰り返しシリーズごとに 1 つの Markdown ファイル
+- 共有 Google OAuth
+- 選択したカレンダーの同期
+- カレンダーごとの sync token を使った増分更新
+
+## 出力の形
+
+レンダリングされたファイルは、確認しやすいようにコネクタごとに整理されます。
+
+典型的なパスは次のようになります。
+
+```text
+notion/pages/project-plan-<source-id>.md
+notion/databases/tasks/task-item-<source-id>.md
+gmail/account-example-com/2026/03/weekly-update-<message-id>.md
+google-calendar/primary/2026/03/team-sync-<calendar-id:event-id>.md
+```
+
+各ドキュメントは、コネクタのメタデータとソース固有の項目を保持する YAML frontmatter で始まります。正確なフィールドはコネクタによって異なります。
+
+```md
+---
+title: "Project Plan"
+source: "https://www.notion.so/..."
+created: "2026-03-17T01:23:45.000Z"
+updated: "2026-03-17T04:56:00.000Z"
+database: "Tasks"
+status: "In Progress"
+due_date: "2026-03-20"
+---
+
+# Project Plan
+
+- Confirm scope
+- Assign owners
+- Track due dates
+```
+
+## 始め方
+
+- まだバイナリをインストールしていない場合は [Installation](/docs/installation) から始めてください。
+- TUI ベースで最短セットアップしたい場合は [Getting Started](/docs/getting-started) を参照してください。
+- ヘッドレス CLI の設定フローが必要なら [Configuration](/docs/configuration) を参照してください。
+- コマンドリファレンスが必要なら [CLI](/docs/cli) を参照してください。

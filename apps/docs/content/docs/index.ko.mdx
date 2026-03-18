@@ -1,0 +1,95 @@
+---
+title: 소개
+description: syncdown이 무엇을 하는지, 무엇을 동기화하는지, 어떤 워크플로우로 시작하면 되는지 설명합니다.
+---
+
+# 소개
+
+`syncdown`은 외부 서비스의 콘텐츠를 가져와 로컬 파일 시스템의 Markdown 파일로 저장합니다.
+
+많은 AI 워크플로우는 MCP나 각 서비스 API를 통해 Notion, Gmail, Google Calendar 같은 도구를 직접 조회합니다. 이런 방식은 유연하지만, 같은 정보를 반복해서 원격으로 읽을수록 로컬 파일에서 작업하는 것보다 느리고 토큰도 더 많이 쓰기 쉽습니다.
+
+`syncdown`은 노트와 메시지를 브라우저 밖으로 꺼내 로컬 폴더에서 다루고 싶은 사람들을 위한 도구입니다. 로컬 폴더에 저장해 검색하고, 백업하고, 동기화하고, 다른 도구에 넘기거나, [qmd](https://github.com/tobi/qmd) 같은 로컬 검색 도구로 인덱싱할 수 있습니다. 여러 서비스에 흩어진 정보를 한 곳에서 관리할 수 있다는 점도 장점입니다.
+
+현재 `syncdown`에는 다음이 포함됩니다.
+
+- 설정과 일상적인 동기화 제어를 위한 전체 화면 TUI
+- 자동화와 원격 환경을 위한 헤드리스 config 명령
+- 사용자가 Notion 연결에 접근을 허용한 페이지와 데이터베이스를 위한 Notion 커넥터
+- `Primary` 받은편지함 메시지를 위한 Gmail 커넥터
+- 선택한 캘린더와 이벤트/반복 시리즈 내보내기를 위한 Google Calendar 커넥터
+- 커넥터별 파일로 저장되는 로컬 Markdown 렌더링
+
+## 하는 일
+
+큰 흐름에서 `syncdown`은 다음을 도와줍니다.
+
+1. Notion, Gmail, Google Calendar 같은 지원 서비스에 연결합니다.
+2. 로컬 출력 디렉터리를 선택합니다.
+3. 서비스에서 콘텐츠를 가져옵니다.
+4. 예측 가능한 폴더 구조에 소스별 Markdown 파일을 씁니다.
+
+이 덕분에 로컬 지식 베이스, 아카이브, 검색 인덱싱, 백업, 일반 파일 기반 개인 워크플로우에 유용합니다.
+
+## 동기화할 수 있는 것
+
+### Notion
+
+- 사용자가 Notion 연결에 접근을 허용한 페이지
+- 사용자가 Notion 연결에 접근을 허용한 데이터베이스에서 반환된 페이지
+- 토큰 기반 인증
+- OAuth 기반 인증
+
+### Gmail
+
+- 메시지당 하나의 Markdown 파일
+- Google OAuth
+- 기본값은 `Primary`, 선택적으로 `Primary + Important`
+- Gmail history ID를 이용한 증분 업데이트
+
+### Google Calendar
+
+- 이벤트 또는 반복 시리즈당 하나의 Markdown 파일
+- 공유 Google OAuth
+- 선택한 캘린더 동기화
+- 캘린더별 sync token을 이용한 증분 업데이트
+
+## 출력 형태
+
+렌더링된 파일은 커넥터별로 묶여 있어서 확인하기 쉽습니다.
+
+일반적인 경로는 다음과 같습니다.
+
+```text
+notion/pages/project-plan-<source-id>.md
+notion/databases/tasks/task-item-<source-id>.md
+gmail/account-example-com/2026/03/weekly-update-<message-id>.md
+google-calendar/primary/2026/03/team-sync-<calendar-id:event-id>.md
+```
+
+각 문서는 커넥터 메타데이터와 소스별 필드를 보존하는 YAML frontmatter로 시작합니다. 정확한 필드는 커넥터마다 다릅니다.
+
+```md
+---
+title: "Project Plan"
+source: "https://www.notion.so/..."
+created: "2026-03-17T01:23:45.000Z"
+updated: "2026-03-17T04:56:00.000Z"
+database: "Tasks"
+status: "In Progress"
+due_date: "2026-03-20"
+---
+
+# Project Plan
+
+- Confirm scope
+- Assign owners
+- Track due dates
+```
+
+## 시작 경로
+
+- 아직 바이너리를 설치하지 않았다면 [Installation](/docs/installation)부터 시작하세요.
+- TUI 기반으로 가장 빨리 설정하고 싶다면 [Getting Started](/docs/getting-started)를 참고하세요.
+- 헤드리스 CLI 설정 흐름이 필요하다면 [Configuration](/docs/configuration)을 참고하세요.
+- 명령어 레퍼런스가 필요하다면 [CLI](/docs/cli)를 참고하세요.

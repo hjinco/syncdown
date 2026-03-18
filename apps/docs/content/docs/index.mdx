@@ -7,13 +7,15 @@ description: Learn what syncdown does, what it syncs, and which workflow to star
 
 `syncdown` pulls content from external services and saves it as local Markdown files on your filesystem.
 
-It is designed for people who want their notes and messages outside the browser: in a local folder they can search, back up, sync, or feed into another tool.
+Many AI workflows talk to tools like Notion, Gmail, or Google Calendar directly through MCP or provider APIs. That is flexible, but repeated remote reads are often slower and more token-expensive than working from local files.
+
+`syncdown` is designed for people who want their notes and messages outside the browser: in a local folder they can search, back up, sync, feed into another tool, or index with local search tooling such as [qmd](https://github.com/tobi/qmd). It also gives them one place to manage information that would otherwise stay scattered across multiple services.
 
 Today, `syncdown` includes:
 
 - a full-screen TUI for setup and day-to-day sync control
 - headless config commands for automation and remote environments
-- a Notion connector for shared pages and shared data source content
+- a Notion connector for pages and databases you've allowed the Notion connection to access
 - a Gmail connector for `Primary` inbox messages
 - a Google Calendar connector for selected calendars and event/series exports
 - local Markdown rendering into connector-scoped files
@@ -33,8 +35,8 @@ That makes it useful for local knowledge bases, archives, search indexing, backu
 
 ### Notion
 
-- Shared pages
-- Pages returned from shared data sources
+- Pages you've allowed the Notion connection to access
+- Pages returned from databases you've allowed the Notion connection to access
 - Token-based auth
 - OAuth-based auth
 
@@ -65,9 +67,9 @@ gmail/account-example-com/2026/03/weekly-update-<message-id>.md
 google-calendar/primary/2026/03/team-sync-<calendar-id:event-id>.md
 ```
 
-Each document starts with frontmatter that preserves source metadata. The exact fields depend on the connector. For Notion, common fields include `title`, `source`, `created`, `updated`, and `database`, plus normalized top-level keys for Notion properties such as `status` or `due_date`.
+Each document starts with YAML frontmatter that preserves connector metadata and source-specific fields. The exact fields depend on the connector.
 
-```yaml
+```md
 ---
 title: "Project Plan"
 source: "https://www.notion.so/..."
@@ -77,6 +79,12 @@ database: "Tasks"
 status: "In Progress"
 due_date: "2026-03-20"
 ---
+
+# Project Plan
+
+- Confirm scope
+- Assign owners
+- Track due dates
 ```
 
 ## Choose your path
