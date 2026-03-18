@@ -124,12 +124,25 @@ curl -fsSL "$BASE_URL/$CHECKSUM_NAME" -o "$CHECKSUM_PATH"
 
 EXPECTED="$(awk -v file="$ARCHIVE_NAME" '
   {
-    candidate = $2
-    sub(/^\*/, "", candidate)
+    hash = ""
+    candidate = ""
+
+    # Remove this malformed-manifest fallback after the next CLI release.
+    if ($0 ~ /^[0-9a-fA-F]{64}[[:space:]]+\*?/) {
+      hash = $1
+      candidate = $2
+    } else if ($0 ~ /^[0-9a-fA-F]{64}/) {
+      hash = substr($0, 1, 64)
+      candidate = substr($0, 65)
+      sub(/^[[:space:]]+/, "", candidate)
+    } else {
+      next
+    }
+
     count = split(candidate, parts, "/")
 
     if (parts[count] == file) {
-      print $1
+      print tolower(hash)
       exit
     }
   }

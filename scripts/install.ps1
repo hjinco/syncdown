@@ -23,28 +23,50 @@ function Get-VersionFromTag([string]$Tag) {
   return [Version]$Matches.version
 }
 
-function Resolve-Tag {
+function Test-ReleaseAsset([string]$Uri) {
+  try {
+    Invoke-WebRequest -UseBasicParsing -Method Head -Uri $Uri | Out-Null
+    return $true
+  } catch {
+    return $false
+  }
+}
+
+function Resolve-Tag([string]$AssetNameSuffix) {
   if ($env:SYNCDOWN_VERSION) {
     return Normalize-Tag $env:SYNCDOWN_VERSION
   }
 
-  $response = Invoke-WebRequest -UseBasicParsing -Uri "https://api.github.com/repos/$Repo/releases?per_page=100"
-  $releases = $response.Content | ConvertFrom-Json
-  $tag = $releases |
-    Where-Object { -not $_.draft -and -not $_.prerelease -and $_.tag_name -match '^cli-v\d+\.\d+\.\d+$' } |
-    Sort-Object { Get-VersionFromTag $_.tag_name } -Descending |
-    ForEach-Object { $_.tag_name } |
-    Select-Object -First 1
-  if (-not $tag) {
-    throw "Unable to resolve latest CLI release tag."
+  $response = Invoke-WebRequest -UseBasicParsing -Uri "https://api.github.com/repos/$Repo/tags?per_page=100"
+  $tags = $response.Content | ConvertFrom-Json
+  $candidateTags = $tags |
+    Where-Object { $_.name -match '^cli-v\d+\.\d+\.\d+$' } |
+    Sort-Object { Get-VersionFromTag $_.name } -Descending |
+    ForEach-Object { $_.name }
+
+  foreach ($tag in $candidateTags) {
+    $baseUrl = "https://github.com/$Repo/releases/download/$tag"
+    $assetName = "syncdown-$tag-$AssetNameSuffix"
+    $checksumsName = "syncdown-$tag-SHA256SUMS.txt"
+
+    if (
+      (Test-ReleaseAsset -Uri "$baseUrl/$assetName") -and
+      (Test-ReleaseAsset -Uri "$baseUrl/$checksumsName")
+    ) {
+      return $tag
+    }
   }
 
-  return $tag
+  throw "Unable to resolve latest downloadable CLI release tag."
 }
 
 function Get-ExpectedChecksum([string]$ChecksumsPath, [string]$AssetName) {
   foreach ($line in Get-Content -LiteralPath $ChecksumsPath) {
-    if ($line -match '^(?<hash>[a-fA-F0-9]+)\s+\*?(?<file>.+)$' -and [System.IO.Path]::GetFileName($Matches.file) -eq $AssetName) {
+    # Remove this malformed-manifest fallback after the next CLI release.
+    if (
+      $line -match '^(?<hash>[a-fA-F0-9]{64})(?:\s+\*?)?(?<file>.+)$' -and
+      [System.IO.Path]::GetFileName($Matches.file.Trim()) -eq $AssetName
+    ) {
       return $Matches.hash.ToLowerInvariant()
     }
   }
@@ -52,8 +74,9 @@ function Get-ExpectedChecksum([string]$ChecksumsPath, [string]$AssetName) {
   throw "Missing checksum entry for $AssetName."
 }
 
-$Tag = Resolve-Tag
-$AssetName = "syncdown-$Tag-windows-x64.zip"
+$AssetNameSuffix = "windows-x64.zip"
+$Tag = Resolve-Tag -AssetNameSuffix $AssetNameSuffix
+$AssetName = "syncdown-$Tag-$AssetNameSuffix"
 $ChecksumsName = "syncdown-$Tag-SHA256SUMS.txt"
 $BaseUrl = "https://github.com/$Repo/releases/download/$Tag"
 $TempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("syncdown-install-" + [guid]::NewGuid().ToString("N"))
