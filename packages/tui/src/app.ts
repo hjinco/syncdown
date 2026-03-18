@@ -737,6 +737,11 @@ export class ConfigTuiApp {
 				this.refreshView();
 				await this.refreshGoogleCalendarSelection(calendarRoute);
 			} else if (selection === "enable" && route.connector === "gmail") {
+				const hasScopes = await this.ensureGoogleScopesForConnector("gmail");
+				if (!hasScopes) {
+					return;
+				}
+
 				const saved = await this.persistDraftMutation(
 					(draft) => setConnectorEnabled(draft, "gmail", true),
 					"Failed to enable Gmail.",
@@ -751,19 +756,17 @@ export class ConfigTuiApp {
 				selection === "enable" &&
 				route.connector === "google-calendar"
 			) {
+				const hasScopes =
+					await this.ensureGoogleScopesForConnector("google-calendar");
+				if (!hasScopes) {
+					return;
+				}
+
 				if (getDraftSelectedGoogleCalendarIds(this.draft).length === 0) {
 					const calendarRoute = createGoogleCalendarSelectionRoute([]);
 					pushRoute(this.ui, calendarRoute);
 					this.refreshView();
 					await this.refreshGoogleCalendarSelection(calendarRoute);
-					return;
-				}
-
-				const hasScopes = await this.ensureGoogleScopesForConnector(
-					"google-calendar",
-					route.connector,
-				);
-				if (!hasScopes) {
 					return;
 				}
 
@@ -1525,7 +1528,10 @@ export class ConfigTuiApp {
 		});
 	}
 
-	private async getCurrentGoogleCredentials(): Promise<GoogleAuthCredentials | null> {
+	private async getCurrentGoogleOAuthAppCredentials(): Promise<{
+		clientId: string;
+		clientSecret: string;
+	} | null> {
 		const clientId =
 			this.draft.googleClientId.action === "set"
 				? this.draft.googleClientId.value
@@ -1546,6 +1552,19 @@ export class ConfigTuiApp {
 								.clientSecret,
 							this.paths,
 						);
+		if (!clientId || !clientSecret) {
+			return null;
+		}
+
+		return {
+			clientId,
+			clientSecret,
+		};
+	}
+
+	private async getCurrentGoogleCredentials(): Promise<GoogleAuthCredentials | null> {
+		const oauthAppCredentials =
+			await this.getCurrentGoogleOAuthAppCredentials();
 		const refreshToken =
 			this.draft.googleRefreshToken.action === "set"
 				? this.draft.googleRefreshToken.value
@@ -1557,52 +1576,75 @@ export class ConfigTuiApp {
 							this.paths,
 						);
 
-		if (!clientId || !clientSecret || !refreshToken) {
+		if (!oauthAppCredentials || !refreshToken) {
 			return null;
 		}
 
 		return {
-			clientId,
-			clientSecret,
+			clientId: oauthAppCredentials.clientId,
+			clientSecret: oauthAppCredentials.clientSecret,
 			refreshToken,
 		};
 	}
 
 	private async ensureGoogleScopesForConnector(
-		connectorId: "gmail" | "google-calendar",
-		connectorTarget: "gmail" | "google-calendar",
+		connector: "gmail" | "google-calendar",
 	): Promise<boolean> {
 		const credentials = await this.getCurrentGoogleCredentials();
-		if (!credentials) {
-			return false;
-		}
-
-		try {
-			await this.authService.validateGoogleCredentials(
-				this.paths,
-				credentials,
-				await this.getRequiredGoogleScopes(connectorId),
-			);
-			return true;
-		} catch (error) {
-			const message =
-				error instanceof Error
-					? error.message
-					: "Google account is missing required scopes.";
+		const requiredScopes = await this.getRequiredGoogleScopes(connector);
+		if (credentials) {
+			try {
+				await this.authService.validateGoogleCredentials(
+					this.paths,
+					credentials,
+					requiredScopes,
+				);
+				return true;
+			} catch (error) {
+				const message =
+					error instanceof Error
+						? error.message
+						: "Google account is missing required scopes.";
+				setNotice(this.ui, {
+					kind: "error",
+					text: message,
+				});
+			}
+		} else {
 			setNotice(this.ui, {
 				kind: "error",
-				text: message,
+				text: "Google account setup is incomplete. Reconnect to continue.",
 			});
-			const authRoute = createConnectorAuthRoute(
-				connectorTarget,
-				"google-oauth",
-			);
-			pushRoute(this.ui, authRoute);
-			await this.openOAuthSetupPage(authRoute, () =>
-				this.authService.openGoogleOAuthSetup(),
-			);
-			return false;
 		}
+
+		const authRoute = createConnectorAuthRoute(connector, "google-oauth");
+		pushRoute(this.ui, authRoute);
+		const oauthAppCredentials =
+			await this.getCurrentGoogleOAuthAppCredentials();
+		if (oauthAppCredentials) {
+			authRoute.values.googleClientId = oauthAppCredentials.clientId;
+			authRoute.values.googleClientSecret = oauthAppCredentials.clientSecret;
+			await this.runGoogleConnectFlow(
+				authRoute,
+				oauthAppCredentials.clientId,
+				oauthAppCredentials.clientSecret,
+			);
+			if (
+				getCurrentRoute(this.ui) !== authRoute ||
+				authRoute.stage !== "success"
+			) {
+				return false;
+			}
+
+			popRoute(this.ui);
+			this.refreshView();
+			return true;
+		}
+
+		await this.openOAuthSetupPage(authRoute, () =>
+			this.authService.openGoogleOAuthSetup(),
+		);
+		return false;
 	}
 
 	private async refreshGoogleCalendarSelection(
