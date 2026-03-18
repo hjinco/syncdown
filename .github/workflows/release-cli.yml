@@ -67,6 +67,7 @@ jobs:
         shell: bash
         run: |
           event_name="${GITHUB_EVENT_NAME}"
+          has_changesets="${{ steps.changesets.outputs.hasChangesets }}"
           requested_version="${{ inputs.cli_version }}"
           force_republish="${{ inputs.force_republish && 'true' || 'false' }}"
           cli_version=$(bun -e "console.log(JSON.parse(await Bun.file('./apps/cli/package.json').text()).version)")
@@ -79,16 +80,18 @@ jobs:
             tag_exists=true
           fi
 
-          if [[ "${event_name}" == "push" && "${{ steps.changesets.outputs.hasChangesets }}" == "false" ]]; then
-            package_changed=false
-            if git rev-parse HEAD^ >/dev/null 2>&1; then
-              if ! git diff --quiet HEAD^ HEAD -- apps/cli/package.json; then
-                package_changed=true
+          if [[ "${event_name}" == "push" ]]; then
+            if [[ "${has_changesets}" == "false" ]]; then
+              package_changed=false
+              if git rev-parse HEAD^ >/dev/null 2>&1; then
+                if ! git diff --quiet HEAD^ HEAD -- apps/cli/package.json; then
+                  package_changed=true
+                fi
               fi
-            fi
 
-            if [[ "$package_changed" == "true" && "$tag_exists" == "false" ]]; then
-              should_release=true
+              if [[ "$package_changed" == "true" && "$tag_exists" == "false" ]]; then
+                should_release=true
+              fi
             fi
           elif [[ "${event_name}" == "workflow_dispatch" ]]; then
             if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
