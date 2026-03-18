@@ -1,3 +1,8 @@
+export function withHomeDirectory<T>(
+	homeDir: string,
+	run: () => Promise<T>,
+): Promise<T>;
+export function withHomeDirectory<T>(homeDir: string, run: () => T): T;
 export function withHomeDirectory<T>(homeDir: string, run: () => T): T {
 	const previousHome = Bun.env.HOME;
 	const restore = () => {
@@ -12,13 +17,8 @@ export function withHomeDirectory<T>(homeDir: string, run: () => T): T {
 
 	try {
 		const result = run();
-		if (
-			result &&
-			typeof result === "object" &&
-			"then" in result &&
-			typeof result.then === "function"
-		) {
-			return (result as Promise<Awaited<T>>).finally(restore) as T;
+		if (result instanceof Promise) {
+			return result.finally(restore) as T;
 		}
 
 		restore();
