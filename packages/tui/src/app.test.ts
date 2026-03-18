@@ -2085,12 +2085,12 @@ test("sync dashboard can start watch and run actions", async () => {
 test("sync dashboard can cancel an active run while the start action is still busy", async () => {
 	const { renderer } = await createTestRenderer({ width: 100, height: 30 });
 	const session = createSessionStub();
-	let resolveRunNow: (() => void) | null = null;
+	let resolveRunNow = () => {};
 
 	session.session.runNow = async (target, options) => {
 		session.runCalls.push({ target, options });
 		await new Promise<void>((resolve) => {
-			resolveRunNow = resolve;
+			resolveRunNow = () => resolve();
 		});
 	};
 
@@ -2166,7 +2166,7 @@ test("sync dashboard can cancel an active run while the start action is still bu
 		text: "Stop the current sync before leaving the sync dashboard.",
 	});
 
-	resolveRunNow?.();
+	resolveRunNow();
 	await runPromise;
 	expect((tui as any).ui.routes.at(-1).busy).toBe(false);
 	expect((tui as any).ui.notice).toEqual({
