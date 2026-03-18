@@ -52,6 +52,9 @@ function createApp(): SyncdownApp {
 		async run() {
 			throw new Error("should not be called");
 		},
+		async reset() {
+			throw new Error("should not be called");
+		},
 		async listConnectors() {
 			throw new Error("should not be called");
 		},

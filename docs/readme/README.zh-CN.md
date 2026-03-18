@@ -148,10 +148,17 @@ syncdown connectors
 syncdown doctor
 syncdown run
 syncdown run --watch
+syncdown reset --yes
 syncdown update --check
 ```
 
 如需非交互式配置，可使用 `syncdown config set <key> <value>` 和 `syncdown config unset <key>`。
+
+如果你想在保留已同步 Markdown 输出的同时，仅重置本地应用数据：
+
+```sh
+syncdown reset --yes
+```
 
 ## Connectors
 

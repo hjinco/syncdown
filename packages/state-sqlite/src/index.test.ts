@@ -167,6 +167,28 @@ test("renames legacy json state files before creating a new sqlite database", as
 	}
 });
 
+test("dispose closes the database and allows the store to reopen", async () => {
+	const { cleanup } = await createStateEnvironment();
+
+	try {
+		const store = createStateStore();
+
+		await store.setCursor(NOTION_INTEGRATION_ID, "cursor-1");
+		await store.dispose?.();
+		await store.setLastSyncAt(
+			NOTION_INTEGRATION_ID,
+			"2026-03-16T10:00:00.000Z",
+		);
+
+		expect(await store.getCursor(NOTION_INTEGRATION_ID)).toBe("cursor-1");
+		expect(await store.getLastSyncAt(NOTION_INTEGRATION_ID)).toBe(
+			"2026-03-16T10:00:00.000Z",
+		);
+	} finally {
+		await cleanup();
+	}
+});
+
 test("deletes persisted source records and snapshots", async () => {
 	const { cleanup } = await createStateEnvironment();
 

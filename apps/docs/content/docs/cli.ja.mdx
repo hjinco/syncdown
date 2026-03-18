@@ -22,6 +22,7 @@ syncdown run --connector <notion|gmail|google-calendar>
 syncdown run --integration <integration-id>
 syncdown run --reset [--connector <notion|gmail|google-calendar>|--integration <integration-id>]
 syncdown run --watch [--interval <5m|15m|1h|6h|24h>]
+syncdown reset --yes
 syncdown connectors
 syncdown doctor
 syncdown update
@@ -110,6 +111,24 @@ syncdown run --integration notion-default --reset
 syncdown run --watch
 syncdown run --watch --interval 15m
 ```
+
+## `syncdown reset --yes`
+
+ローカルの syncdown アプリデータを一括で削除します。
+
+```sh
+syncdown reset --yes
+```
+
+削除対象:
+
+- `config.json`
+- `state.db`
+- `secrets.enc`
+- `master.key`
+- `sync.lock`
+
+設定済み `outputDir` 配下の同期済み Markdown 出力は削除しません。
 
 ## `syncdown connectors`
 

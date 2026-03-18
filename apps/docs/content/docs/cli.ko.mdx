@@ -22,6 +22,7 @@ syncdown run --connector <notion|gmail|google-calendar>
 syncdown run --integration <integration-id>
 syncdown run --reset [--connector <notion|gmail|google-calendar>|--integration <integration-id>]
 syncdown run --watch [--interval <5m|15m|1h|6h|24h>]
+syncdown reset --yes
 syncdown connectors
 syncdown doctor
 syncdown update
@@ -110,6 +111,24 @@ syncdown run --integration notion-default --reset
 syncdown run --watch
 syncdown run --watch --interval 15m
 ```
+
+## `syncdown reset --yes`
+
+로컬 syncdown 앱 데이터를 한 번에 삭제합니다.
+
+```sh
+syncdown reset --yes
+```
+
+다음 파일이 제거됩니다.
+
+- `config.json`
+- `state.db`
+- `secrets.enc`
+- `master.key`
+- `sync.lock`
+
+설정된 `outputDir` 아래의 동기화된 Markdown 출력은 삭제하지 않습니다.
 
 ## `syncdown connectors`
 

@@ -146,10 +146,17 @@ syncdown connectors
 syncdown doctor
 syncdown run
 syncdown run --watch
+syncdown reset --yes
 syncdown update --check
 ```
 
 Use `syncdown config set <key> <value>` and `syncdown config unset <key>` for non-interactive configuration.
+
+Reset local app data without touching synced Markdown output:
+
+```sh
+syncdown reset --yes
+```
 
 ## Connectors
 

@@ -209,6 +209,25 @@ class BunSqliteStateStore implements StateStore {
 		database.run(sql, args);
 	}
 
+	async dispose(): Promise<void> {
+		const ready = this.ready;
+
+		if (ready) {
+			try {
+				await ready;
+			} catch {
+				this.ready = null;
+				this.database = null;
+				return;
+			}
+		}
+
+		const database = this.database;
+		this.ready = null;
+		this.database = null;
+		database?.close();
+	}
+
 	async getCursor(integrationId: string): Promise<string | null> {
 		const row = await this.queryOne<CursorRow>(
 			"SELECT cursor_value FROM integration_state WHERE integration_id = ?",

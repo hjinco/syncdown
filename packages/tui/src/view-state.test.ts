@@ -617,5 +617,5 @@ test("diagnostics entry only appears under Advanced", () => {
 		getRouteOptions({ id: "advanced", selectedIndex: 0 }, draft).map(
 			(option) => option.name,
 		),
-	).toEqual(["Diagnostics"]);
+	).toEqual(["Diagnostics", "Reset app data"]);
 });

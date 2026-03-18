@@ -22,6 +22,7 @@ syncdown run --connector <notion|gmail|google-calendar>
 syncdown run --integration <integration-id>
 syncdown run --reset [--connector <notion|gmail|google-calendar>|--integration <integration-id>]
 syncdown run --watch [--interval <5m|15m|1h|6h|24h>]
+syncdown reset --yes
 syncdown connectors
 syncdown doctor
 syncdown update
@@ -111,6 +112,24 @@ Start global watch mode:
 syncdown run --watch
 syncdown run --watch --interval 15m
 ```
+
+## `syncdown reset --yes`
+
+Delete local syncdown app data in one step:
+
+```sh
+syncdown reset --yes
+```
+
+This removes:
+
+- `config.json`
+- `state.db`
+- `secrets.enc`
+- `master.key`
+- `sync.lock`
+
+It does not remove synced Markdown output under your configured `outputDir`.
 
 ## `syncdown connectors`
 

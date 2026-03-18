@@ -56,6 +56,7 @@ function getHelpLines(): string[] {
 		"  syncdown run --integration <integration-id>",
 		"  syncdown run --reset [--connector <notion|gmail|google-calendar>|--integration <integration-id>]",
 		"  syncdown run --watch [--interval <5m|15m|1h|6h|24h>]",
+		"  syncdown reset --yes",
 		"  syncdown connectors",
 		"  syncdown doctor",
 		"  syncdown update",
@@ -189,6 +190,10 @@ function printRunUsage(io: AppIo): void {
 
 function printUpdateUsage(io: AppIo): void {
 	io.error("Usage: syncdown update [--check]");
+}
+
+function printResetUsage(io: AppIo): void {
+	io.error("Usage: syncdown reset --yes");
 }
 
 function isInteractiveTerminal(): boolean {
@@ -874,6 +879,19 @@ async function handleUpdateCommand(
 	}
 }
 
+async function handleResetCommand(
+	io: AppIo,
+	args: string[],
+	app: SyncdownApp,
+): Promise<number> {
+	if (args.length !== 1 || args[0] !== "--yes") {
+		printResetUsage(io);
+		return EXIT_CODES.CONFIG_ERROR;
+	}
+
+	return app.reset(io);
+}
+
 function shouldRunAutoUpdateCheck(command: string | undefined): boolean {
 	return (
 		command !== undefined &&
@@ -945,6 +963,8 @@ export async function runCli(
 			}
 			return app.run(io, runOptions);
 		}
+		case "reset":
+			return handleResetCommand(io, argv.slice(3), app);
 		case "connectors":
 			return app.listConnectors(io);
 		case "doctor":

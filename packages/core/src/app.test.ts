@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { access, readFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { createSyncdownApp } from "./app.js";
@@ -259,6 +259,126 @@ test("keeps partially persisted documents recoverable across failed and successf
 				"utf8",
 			),
 		).toBe("page2\nbody-page2\n");
+	} finally {
+		await cleanup();
+	}
+});
+
+test("reset removes app data files but keeps synced output", async () => {
+	const { cleanup, config, paths } = await createTestPaths();
+
+	try {
+		await mkdir(paths.dataDir, { recursive: true });
+		await writeFile(paths.statePath, "state", "utf8");
+		await writeFile(`${paths.statePath}-shm`, "state-shm", "utf8");
+		await writeFile(`${paths.statePath}-wal`, "state-wal", "utf8");
+		await writeFile(paths.secretsPath, "secrets", "utf8");
+		await writeFile(paths.masterKeyPath, "master-key", "utf8");
+		await writeFile(paths.lockPath, "lock", "utf8");
+
+		const outputFilePath = path.join(
+			config.outputDir!,
+			"notion",
+			"pages",
+			"page-1.md",
+		);
+		await mkdir(path.dirname(outputFilePath), { recursive: true });
+		await writeFile(outputFilePath, "page-1\nbody-page-1\n", "utf8");
+
+		const { io, writes, errors } = createIoCapture();
+		const app = createSyncdownApp({
+			connectors: [],
+			renderer: new TestRenderer(),
+			sink: new TestSink(),
+			state: new MemoryStateStore(),
+			secrets: new StaticSecretsStore(),
+		});
+
+		const exitCode = await app.reset(io);
+
+		expect(exitCode).toBe(EXIT_CODES.OK);
+		expect(errors).toEqual([]);
+		await expect(access(paths.configPath)).rejects.toBeDefined();
+		await expect(access(paths.statePath)).rejects.toBeDefined();
+		await expect(access(`${paths.statePath}-shm`)).rejects.toBeDefined();
+		await expect(access(`${paths.statePath}-wal`)).rejects.toBeDefined();
+		await expect(access(paths.secretsPath)).rejects.toBeDefined();
+		await expect(access(paths.masterKeyPath)).rejects.toBeDefined();
+		await expect(access(paths.lockPath)).rejects.toBeDefined();
+		expect(await readFile(outputFilePath, "utf8")).toBe(
+			"page-1\nbody-page-1\n",
+		);
+		expect(writes[0]).toBe("Removed app data:");
+		expect(writes).toContain(`- ${paths.configPath}`);
+		expect(writes).toContain(`- ${paths.lockPath}`);
+		expect(writes).toContain("Synced output files were not removed.");
+	} finally {
+		await cleanup();
+	}
+});
+
+test("reset disposes the state store before deleting app data", async () => {
+	const { cleanup, paths } = await createTestPaths();
+	let disposed = 0;
+	const state = new MemoryStateStore();
+	state.dispose = async () => {
+		disposed += 1;
+	};
+
+	try {
+		await mkdir(paths.dataDir, { recursive: true });
+		await writeFile(paths.statePath, "state", "utf8");
+
+		const app = createSyncdownApp({
+			connectors: [],
+			renderer: new TestRenderer(),
+			sink: new TestSink(),
+			state,
+			secrets: new StaticSecretsStore(),
+		});
+
+		const exitCode = await app.reset(createIo());
+
+		expect(exitCode).toBe(EXIT_CODES.OK);
+		expect(disposed).toBe(1);
+	} finally {
+		await cleanup();
+	}
+});
+
+test("reset returns locked when another sync lock is active", async () => {
+	const { cleanup, paths } = await createTestPaths();
+
+	try {
+		await mkdir(paths.dataDir, { recursive: true });
+		const now = new Date().toISOString();
+		await writeFile(
+			paths.lockPath,
+			`${JSON.stringify(
+				{
+					pid: process.pid,
+					createdAt: now,
+					updatedAt: now,
+				},
+				null,
+				2,
+			)}\n`,
+			"utf8",
+		);
+
+		const { io, errors } = createIoCapture();
+		const app = createSyncdownApp({
+			connectors: [],
+			renderer: new TestRenderer(),
+			sink: new TestSink(),
+			state: new MemoryStateStore(),
+			secrets: new StaticSecretsStore(),
+		});
+
+		const exitCode = await app.reset(io);
+
+		expect(exitCode).toBe(EXIT_CODES.LOCKED);
+		expect(errors[0] ?? "").toMatch(/Another sync is already running/);
 	} finally {
 		await cleanup();
 	}

@@ -182,14 +182,17 @@ function createAppStub(
 	options: {
 		inspect?: () => Promise<AppSnapshot>;
 		run?: (options?: RunOptions) => Promise<number>;
+		reset?: () => Promise<number>;
 		listConnectors?: () => Promise<number>;
 		doctor?: () => Promise<number>;
 	} = {},
 ): {
 	app: SyncdownApp;
 	runCalls: RunOptions[];
+	resetCalls: number;
 } {
 	const runCalls: RunOptions[] = [];
+	let resetCalls = 0;
 
 	return {
 		app: {
@@ -206,6 +209,10 @@ function createAppStub(
 				runCalls.push(runOptions ?? {});
 				return options.run ? options.run(runOptions) : EXIT_CODES.OK;
 			},
+			async reset() {
+				resetCalls += 1;
+				return options.reset ? options.reset() : EXIT_CODES.OK;
+			},
 			async listConnectors() {
 				if (options.listConnectors) {
 					return options.listConnectors();
@@ -220,6 +227,9 @@ function createAppStub(
 			},
 		},
 		runCalls,
+		get resetCalls() {
+			return resetCalls;
+		},
 	};
 }
 
@@ -804,6 +814,52 @@ test("run rejects an invalid watch interval", async () => {
 	expect(exitCode).toBe(EXIT_CODES.CONFIG_ERROR);
 	expect(runCalls).toEqual([]);
 	expect(errors[0] ?? "").toMatch(/--interval must be one of/);
+});
+
+test("reset dispatches to app.reset when --yes is provided", async () => {
+	const { io, errors } = createIoCapture();
+	const stub = createAppStub();
+
+	const exitCode = await runTestCli(
+		["syncdown", "syncdown", "reset", "--yes"],
+		{
+			app: stub.app,
+			io,
+			secrets: createSecretsStub(),
+		},
+	);
+
+	expect(exitCode).toBe(EXIT_CODES.OK);
+	expect(stub.resetCalls).toBe(1);
+	expect(errors).toEqual([]);
+});
+
+test("reset requires --yes and rejects extra arguments", async () => {
+	const { io, errors } = createIoCapture();
+	const stub = createAppStub();
+
+	const missingConfirmationExitCode = await runTestCli(
+		["syncdown", "syncdown", "reset"],
+		{
+			app: stub.app,
+			io,
+			secrets: createSecretsStub(),
+		},
+	);
+
+	const extraArgumentExitCode = await runTestCli(
+		["syncdown", "syncdown", "reset", "--yes", "--force"],
+		{
+			app: stub.app,
+			io,
+			secrets: createSecretsStub(),
+		},
+	);
+
+	expect(missingConfirmationExitCode).toBe(EXIT_CODES.CONFIG_ERROR);
+	expect(extraArgumentExitCode).toBe(EXIT_CODES.CONFIG_ERROR);
+	expect(stub.resetCalls).toBe(0);
+	expect(errors).toContain("Usage: syncdown reset --yes");
 });
 
 test("run rejects --reset with --watch", async () => {

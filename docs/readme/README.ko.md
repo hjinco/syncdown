@@ -147,10 +147,17 @@ syncdown connectors
 syncdown doctor
 syncdown run
 syncdown run --watch
+syncdown reset --yes
 syncdown update --check
 ```
 
 비대화형 설정에는 `syncdown config set <key> <value>` 와 `syncdown config unset <key>` 를 사용합니다.
+
+동기화된 Markdown 출력은 그대로 둔 채 로컬 앱 데이터만 초기화하려면:
+
+```sh
+syncdown reset --yes
+```
 
 ## Connectors
 

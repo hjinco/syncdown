@@ -1,3 +1,4 @@
+import { rm } from "node:fs/promises";
 import {
 	createNullIo,
 	createStdIo,
@@ -17,6 +18,7 @@ import {
 	getIntegrationRenderVersion,
 	hasStoredCredentials,
 } from "./execution.js";
+import { acquireRunLock } from "./run-lock.js";
 import {
 	type AppRuntime,
 	createRuntime,
@@ -42,6 +44,14 @@ export function createSyncdownApp(
 	runtimeOverrides: Partial<AppRuntime> = {},
 ): SyncdownApp {
 	const runtime = createRuntime(runtimeOverrides);
+	const resetPaths = (paths: AppSnapshot["paths"]) => [
+		paths.configPath,
+		paths.statePath,
+		`${paths.statePath}-shm`,
+		`${paths.statePath}-wal`,
+		paths.secretsPath,
+		paths.masterKeyPath,
+	];
 
 	const inspect = async (): Promise<AppSnapshot> => {
 		const paths = resolveAppPaths();
@@ -136,6 +146,48 @@ export function createSyncdownApp(
 			} finally {
 				signalWaiter.dispose();
 				await session.dispose();
+			}
+		},
+
+		async reset(io = createStdIo()): Promise<number> {
+			const paths = resolveAppPaths();
+
+			try {
+				const lock = await acquireRunLock(paths, runtime);
+				let released = false;
+				try {
+					const deletedPaths = resetPaths(paths);
+					await services.state.dispose?.();
+
+					await Promise.all(
+						deletedPaths.map((filePath) => rm(filePath, { force: true })),
+					);
+
+					await lock.release();
+					released = true;
+
+					io.write("Removed app data:");
+					for (const filePath of [...deletedPaths, paths.lockPath]) {
+						io.write(`- ${filePath}`);
+					}
+					io.write("Synced output files were not removed.");
+					return EXIT_CODES.OK;
+				} finally {
+					if (!released) {
+						await lock.release();
+					}
+				}
+			} catch (error) {
+				const message =
+					error instanceof Error ? error.message : "App reset failed.";
+				io.error(message);
+				if (error instanceof Error && error.name === "RunLockError") {
+					return EXIT_CODES.LOCKED;
+				}
+				if ((error as Partial<SessionRunError>).exitCode) {
+					return (error as SessionRunError).exitCode;
+				}
+				return EXIT_CODES.GENERAL_ERROR;
 			}
 		},
 

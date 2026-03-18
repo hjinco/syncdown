@@ -90,6 +90,10 @@ export interface ConfirmDisconnectRoute extends BaseRoute {
 	provider?: ProviderTarget;
 }
 
+export interface ConfirmResetRoute extends BaseRoute {
+	id: "confirmReset";
+}
+
 export interface OutputRoute extends BaseRoute {
 	id: "output";
 }
@@ -155,6 +159,7 @@ export type ConfigRoute =
 	| ConnectorDetailsRoute
 	| ConnectorAuthRoute
 	| ConfirmDisconnectRoute
+	| ConfirmResetRoute
 	| OutputRoute
 	| OutputCustomRoute
 	| ScheduleRoute
@@ -375,6 +380,13 @@ export function createOutputCustomRoute(draft: DraftState): OutputCustomRoute {
 		selectedIndex: 0,
 		value: draft.config.outputDir ?? "",
 		error: null,
+	};
+}
+
+export function createConfirmResetRoute(): ConfirmResetRoute {
+	return {
+		id: "confirmReset",
+		selectedIndex: 0,
 	};
 }
 
@@ -623,6 +635,8 @@ export function getRouteTitle(route: ConfigRoute): string {
 			return route.connector === "notion"
 				? "Disconnect Notion"
 				: "Disable Gmail";
+		case "confirmReset":
+			return "Reset App Data";
 		case "output":
 			return "Output";
 		case "outputCustom":
@@ -801,6 +815,18 @@ export function getRouteBody(
 			return route.connector === "notion"
 				? "This will disable the connector and remove its stored credentials immediately."
 				: "This will disable Gmail but keep the stored Google account.";
+		case "confirmReset":
+			return [
+				"This will remove all local syncdown app data immediately.",
+				"",
+				`Config file: ${paths.configPath}`,
+				`State DB: ${paths.statePath}`,
+				`Secrets store: ${paths.secretsPath}`,
+				`Master key: ${paths.masterKeyPath}`,
+				`Run lock: ${paths.lockPath}`,
+				"",
+				"Synced Markdown output under the configured output directory is kept.",
+			].join("\n");
 		case "output":
 			return [
 				`Current output directory: ${draft.config.outputDir ?? "<unset>"}`,
@@ -846,6 +872,8 @@ export function getRouteBody(
 				`Config file: ${paths.configPath}`,
 				`Secrets store: ${paths.secretsPath}`,
 				`State DB: ${paths.statePath}`,
+				"",
+				"Use Reset app data to clear syncdown's local config, state, and stored credentials without touching synced Markdown output.",
 			].join("\n");
 		case "update":
 			return [
@@ -1288,6 +1316,20 @@ export function getRouteOptions(
 					value: "disconnect",
 				},
 			];
+		case "confirmReset":
+			return [
+				{
+					name: "Keep app data",
+					description: "Return without removing any local syncdown files",
+					value: "cancel",
+				},
+				{
+					name: "Reset now",
+					description:
+						"Delete local config, state, secrets, and the lock file immediately",
+					value: "reset",
+				},
+			];
 		case "output": {
 			const presetPaths = buildOutputPresetPaths();
 			const detected = detectOutputPreset(draft.config.outputDir);
@@ -1402,6 +1444,12 @@ export function getRouteOptions(
 					name: "Diagnostics",
 					description: "Run doctor and inspect the detailed output",
 					value: "diagnostics",
+				},
+				{
+					name: "Reset app data",
+					description:
+						"Delete local config, state, and stored credentials while keeping synced Markdown output",
+					value: "resetAppData",
 				},
 			];
 		case "update":

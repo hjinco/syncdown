@@ -148,10 +148,17 @@ syncdown connectors
 syncdown doctor
 syncdown run
 syncdown run --watch
+syncdown reset --yes
 syncdown update --check
 ```
 
 非対話型の設定には `syncdown config set <key> <value>` と `syncdown config unset <key>` を使います。
+
+同期済み Markdown 出力はそのままにして、ローカルアプリデータだけを初期化するには:
+
+```sh
+syncdown reset --yes
+```
 
 ## Connectors
 
