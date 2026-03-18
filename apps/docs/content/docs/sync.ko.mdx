@@ -18,6 +18,7 @@ syncdown run
 ```sh
 syncdown run --connector notion
 syncdown run --connector google-calendar
+syncdown run --connector apple-notes
 syncdown run --integration notion-default
 ```
 
@@ -51,13 +52,16 @@ interval을 지정하지 않으면 기본값은 `1h`입니다.
 TUI는 별도의 동기화 대시보드에서 다음 작업을 제공합니다.
 
 - 모든 활성 커넥터 즉시 실행
-- 전체, Notion, Gmail, Google Calendar 대상 전체 재동기화 실행
+- 전체, Notion, Gmail, Google Calendar, Apple Notes 대상 전체 재동기화 실행
 - Notion 즉시 실행
 - Gmail 즉시 실행
 - Google Calendar 즉시 실행
+- Apple Notes 즉시 실행
 - watch 모드 시작
 - watch 모드 중지
 - 화면에 보이는 대시보드 로그 지우기
+
+Apple Notes 동기화 액션은 macOS에서만 표시됩니다.
 
 `syncdown run --watch`와 달리 TUI 대시보드는 **integration별 watch** 모드를 시작합니다. 즉, 각 활성 커넥터가 자신의 설정된 interval을 사용합니다.
 

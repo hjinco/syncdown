@@ -16,11 +16,12 @@
     },
     "apps/cli": {
       "name": "@syncdown/cli",
-      "version": "0.1.0",
+      "version": "0.1.2",
       "bin": {
         "syncdown": "./src/bin.ts",
       },
       "devDependencies": {
+        "@syncdown/connector-apple-notes": "workspace:*",
         "@syncdown/connector-gmail": "workspace:*",
         "@syncdown/connector-google-calendar": "workspace:*",
         "@syncdown/connector-notion": "workspace:*",
@@ -58,6 +59,13 @@
         "tailwindcss": "^4.2.1",
         "typescript": "^5.9.3",
         "wrangler": "^4.71.1",
+      },
+    },
+    "packages/connector-apple-notes": {
+      "name": "@syncdown/connector-apple-notes",
+      "version": "0.1.0",
+      "dependencies": {
+        "@syncdown/core": "workspace:*",
       },
     },
     "packages/connector-gmail": {
@@ -616,6 +624,8 @@
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
     "@syncdown/cli": ["@syncdown/cli@workspace:apps/cli"],
+
+    "@syncdown/connector-apple-notes": ["@syncdown/connector-apple-notes@workspace:packages/connector-apple-notes"],
 
     "@syncdown/connector-gmail": ["@syncdown/connector-gmail@workspace:packages/connector-gmail"],
 

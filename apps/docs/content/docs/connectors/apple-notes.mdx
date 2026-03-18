@@ -1,0 +1,55 @@
+---
+title: Apple Notes
+description: Set up the Apple Notes connector and understand what syncs from the local Notes app.
+---
+
+# Apple Notes
+
+The Apple Notes connector syncs readable notes from the local Notes app into Markdown.
+
+## Platform support
+
+Apple Notes sync is currently supported only on macOS.
+
+`syncdown` needs local access to the Notes app on the same Mac where you run it. If macOS blocks access, run the connector again and approve the permission prompt or grant access to the current terminal or app.
+
+## Headless setup
+
+```sh
+syncdown config set appleNotes.enabled true
+syncdown config set appleNotes.interval 1h
+```
+
+Then run:
+
+```sh
+syncdown run --connector apple-notes
+```
+
+## What gets synced
+
+The connector currently syncs:
+
+- note title
+- text body rendered as Markdown text
+- created and updated timestamps
+- account name
+- folder path
+
+The connector does not currently extract or copy attachments.
+
+## Output layout
+
+Markdown files are written under account and folder paths:
+
+```text
+apple-notes/<account>/<folder>/note-title-<note-id>.md
+```
+
+Nested folders are preserved in the output path.
+
+## Current limits
+
+- macOS only
+- local Notes access is required
+- locked or unreadable notes are skipped with warnings

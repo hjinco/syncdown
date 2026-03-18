@@ -141,6 +141,8 @@ export class TestRenderer implements MarkdownRenderer {
 				return "test-renderer-gmail-v1";
 			case "google-calendar":
 				return "test-renderer-google-calendar-v1";
+			case "apple-notes":
+				return "test-renderer-apple-notes-v1";
 			default:
 				throw new Error(`Unsupported connector: ${connectorId}`);
 		}
@@ -152,10 +154,12 @@ export class TestRenderer implements MarkdownRenderer {
 				? `${document.connectorId}/primary/${document.sourceId}.md`
 				: document.pathHint.kind === "calendar-event"
 					? `${document.connectorId}/${document.pathHint.calendarName ?? "calendar"}/${document.sourceId}.md`
-					: document.pathHint.kind === "database" &&
-							document.pathHint.databaseName
-						? `${document.connectorId}/databases/${document.pathHint.databaseName}/${document.sourceId}.md`
-						: `${document.connectorId}/pages/${document.sourceId}.md`;
+					: document.pathHint.kind === "note"
+						? `${document.connectorId}/${document.pathHint.appleNotesAccount ?? "unknown-account"}/${(document.pathHint.appleNotesFolderPath ?? [document.pathHint.appleNotesFolder ?? "root"]).join("/")}/${document.sourceId}.md`
+						: document.pathHint.kind === "database" &&
+								document.pathHint.databaseName
+							? `${document.connectorId}/databases/${document.pathHint.databaseName}/${document.sourceId}.md`
+							: `${document.connectorId}/pages/${document.sourceId}.md`;
 
 		return {
 			sourceId: document.sourceId,
@@ -218,13 +222,19 @@ export function createSource(
 }
 
 export function createConnector(
-	id: "notion" | "gmail" | "google-calendar",
+	id: "notion" | "gmail" | "google-calendar" | "apple-notes",
 	syncImpl?: (request: ConnectorSyncRequest) => Promise<ConnectorSyncResult>,
 ): Connector {
 	return {
 		id,
 		label:
-			id === "notion" ? "Notion" : id === "gmail" ? "Gmail" : "Google Calendar",
+			id === "notion"
+				? "Notion"
+				: id === "gmail"
+					? "Gmail"
+					: id === "google-calendar"
+						? "Google Calendar"
+						: "Apple Notes",
 		setupMethods:
 			id === "gmail"
 				? [
@@ -246,16 +256,18 @@ export function createConnector(
 								],
 							},
 						]
-					: [
-							{
-								kind: "token",
-							},
-							{
-								kind: "provider-oauth",
-								providerId: "notion",
-								requiredScopes: [],
-							},
-						],
+					: id === "apple-notes"
+						? []
+						: [
+								{
+									kind: "token",
+								},
+								{
+									kind: "provider-oauth",
+									providerId: "notion",
+									requiredScopes: [],
+								},
+							],
 		async validate(): Promise<{ status: "ok"; message: string }> {
 			return { status: "ok", message: "credentials valid" };
 		},

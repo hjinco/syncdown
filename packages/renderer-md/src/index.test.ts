@@ -7,6 +7,7 @@ import { createMarkdownRenderer } from "./index.js";
 const NOTION_INTEGRATION_ID = "11111111-1111-4111-8111-111111111111";
 const GMAIL_INTEGRATION_ID = "22222222-2222-4222-8222-222222222222";
 const CALENDAR_INTEGRATION_ID = "33333333-3333-4333-8333-333333333333";
+const APPLE_NOTES_INTEGRATION_ID = "44444444-4444-4444-8444-444444444444";
 
 function createGmailSnapshot(): SourceSnapshot {
 	return {
@@ -95,6 +96,33 @@ function createCalendarSnapshot(): SourceSnapshot {
 	};
 }
 
+function createAppleNotesSnapshot(): SourceSnapshot {
+	return {
+		integrationId: APPLE_NOTES_INTEGRATION_ID,
+		connectorId: "apple-notes",
+		sourceId: "apple-note-123",
+		entityType: "note",
+		title: "Daily Notes",
+		slug: "",
+		pathHint: {
+			kind: "note",
+			appleNotesAccount: "Personal iCloud",
+			appleNotesFolder: "Scratchpad",
+			appleNotesFolderPath: ["Work", "Scratchpad"],
+		},
+		metadata: {
+			createdAt: "2026-03-18T01:02:03.000Z",
+			updatedAt: "2026-03-18T04:05:06.000Z",
+			appleNotesNoteId: "x-coredata://note/id/123",
+			appleNotesFolder: "Scratchpad",
+			appleNotesFolderPath: ["Work", "Scratchpad"],
+		},
+		bodyMd: "Captured locally",
+		sourceHash: "hash-apple-note-123",
+		snapshotSchemaVersion: "1",
+	};
+}
+
 test("gmail message paths render under account, year, and month folders", () => {
 	const renderer = createMarkdownRenderer();
 	const document = renderer.render(createGmailSnapshot());
@@ -110,6 +138,7 @@ test("renderer exposes connector-specific versions", () => {
 	expect(renderer.getVersion("notion")).toBe("1");
 	expect(renderer.getVersion("gmail")).toBe("1");
 	expect(renderer.getVersion("google-calendar")).toBe("1");
+	expect(renderer.getVersion("apple-notes")).toBe("1");
 });
 
 test("calendar paths use event ids for filenames when available", () => {
@@ -127,6 +156,15 @@ test("notion database item paths omit integration ids", () => {
 
 	expect(document.relativePath).toBe(
 		"notion/databases/projects/roadmap-page-123.md",
+	);
+});
+
+test("apple notes paths include account and folder", () => {
+	const renderer = createMarkdownRenderer();
+	const document = renderer.render(createAppleNotesSnapshot());
+
+	expect(document.relativePath).toBe(
+		"apple-notes/personal-icloud/work/scratchpad/daily-notes-note-id-123.md",
 	);
 });
 
@@ -188,6 +226,15 @@ test("notion frontmatter excludes archived while keeping notion metadata fields"
 	expect(document.contents).toMatch(/^updated: "2026-03-16T12:00:00\.000Z"$/m);
 	expect(document.contents).toMatch(/^database: "Projects"$/m);
 	expect(document.contents).toMatch(/^status: "Done"$/m);
+});
+
+test("apple notes frontmatter stays user-facing", () => {
+	const renderer = createMarkdownRenderer();
+	const document = renderer.render(createAppleNotesSnapshot());
+
+	expect(document.contents).toMatch(/^folder: "Work\/Scratchpad"$/m);
+	expect(document.contents).not.toMatch(/^folder_path:/m);
+	expect(document.contents).not.toMatch(/^apple_notes_note_id:/m);
 });
 
 test("notion frontmatter flattens normalized property keys", () => {

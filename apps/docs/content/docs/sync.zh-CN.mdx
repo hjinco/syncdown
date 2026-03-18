@@ -18,6 +18,7 @@ syncdown run
 ```sh
 syncdown run --connector notion
 syncdown run --connector google-calendar
+syncdown run --connector apple-notes
 syncdown run --integration notion-default
 ```
 
@@ -51,13 +52,16 @@ syncdown run --watch --interval 5m
 TUI 提供一个独立的同步面板，包含以下操作：
 
 - 立即运行所有已启用的 connector
-- 对全部、Notion、Gmail、Google Calendar 执行完整重同步
+- 对全部、Notion、Gmail、Google Calendar、Apple Notes 执行完整重同步
 - 立即运行 Notion
 - 立即运行 Gmail
 - 立即运行 Google Calendar
+- 立即运行 Apple Notes
 - 启动 watch 模式
 - 停止 watch 模式
 - 清除当前可见的面板日志
+
+Apple Notes 同步操作仅在 macOS 上可用。
 
 与 `syncdown run --watch` 不同，TUI 面板启动的是 **按 integration 的 watch** 模式。也就是说，每个已启用的 connector 都会使用自己配置的 interval。
 

@@ -54,11 +54,12 @@ Treat the Markdown files and connector folders under that output tree as `syncdo
 
 ### 3. Connect a source
 
-Open **Connectors** and set up one or both of the supported sources:
+Open **Connectors** and set up the sources you want:
 
 - **Notion** for pages and databases you've allowed the Notion connection to access
 - **Gmail** for `Primary` inbox sync through Google OAuth
 - **Google Calendar** for selected calendars through the shared Google OAuth account
+- **Apple Notes** for local notes on macOS
 
 ### 4. Run your first sync
 
@@ -68,6 +69,7 @@ From the TUI home screen, open **Sync** and run:
 - **Run Notion**
 - **Run Gmail**
 - **Run Google Calendar**
+- **Run Apple Notes**
 
 You can also do a minimal headless setup from the CLI:
 
@@ -165,12 +167,14 @@ syncdown reset --yes
 - **Notion** with token or OAuth auth
 - **Gmail** with Google OAuth and incremental inbox sync
 - **Google Calendar** with shared Google OAuth and selected-calendar incremental sync
+- **Apple Notes** with local macOS access
 
 Connector-specific setup details, supported behavior, and current limits are documented separately:
 
-- [Notion connector](https://syncdown.dev/docs/content/docs/connectors/notion.mdx)
-- [Gmail connector](https://syncdown.dev/docs/connectors/gmail.mdx)
-- [Google Calendar connector](https://syncdown.dev/docs/connectors/google-calendar.mdx)
+- [Notion connector](https://syncdown.dev/docs/connectors/notion)
+- [Gmail connector](https://syncdown.dev/docs/connectors/gmail)
+- [Google Calendar connector](https://syncdown.dev/docs/connectors/google-calendar)
+- [Apple Notes connector](https://syncdown.dev/docs/connectors/apple-notes)
 
 ## Docs
 

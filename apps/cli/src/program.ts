@@ -1,9 +1,11 @@
+import { createAppleNotesConnector } from "@syncdown/connector-apple-notes";
 import { createGmailConnector } from "@syncdown/connector-gmail";
 import { createGoogleCalendarConnector } from "@syncdown/connector-google-calendar";
 import { createNotionConnector } from "@syncdown/connector-notion";
 import type {
 	AppIo,
 	ApplyUpdateResult,
+	ConnectorId,
 	GmailSyncFilter,
 	RunOptions,
 	SelfUpdater,
@@ -15,6 +17,7 @@ import type {
 import {
 	createStdIo,
 	createSyncdownApp,
+	DEFAULT_APPLE_NOTES_CONNECTION_ID,
 	DEFAULT_NOTION_OAUTH_APP_ID,
 	DEFAULT_NOTION_OAUTH_CONNECTION_ID,
 	DEFAULT_NOTION_TOKEN_CONNECTION_ID,
@@ -26,6 +29,7 @@ import {
 	getNotionOAuthConnectionSecretNames,
 	hasGoogleCredentials,
 	hasNotionOAuthConnectionCredentials,
+	isAppleNotesIntegration,
 	isCalendarIntegration,
 	isGmailIntegration,
 	readConfig,
@@ -41,7 +45,60 @@ import { launchConfigTui } from "@syncdown/tui";
 
 import { createCliSelfUpdater } from "./updater.js";
 
+function supportsAppleNotes(
+	platform: NodeJS.Platform = process.platform,
+): boolean {
+	return platform === "darwin";
+}
+
+function getSupportedRunConnectorIds(
+	platform: NodeJS.Platform = process.platform,
+): ConnectorId[] {
+	return supportsAppleNotes(platform)
+		? ["notion", "gmail", "google-calendar", "apple-notes"]
+		: ["notion", "gmail", "google-calendar"];
+}
+
+function isSupportedRunConnectorId(
+	value: string,
+	platform: NodeJS.Platform = process.platform,
+): value is ConnectorId {
+	return getSupportedRunConnectorIds(platform).includes(value as ConnectorId);
+}
+
+function getConfigSetKeys(
+	platform: NodeJS.Platform = process.platform,
+): string[] {
+	const keys = [
+		"outputDir",
+		"notion.enabled",
+		"notion.interval",
+		"notion.authMethod",
+		"notion.token",
+		"notion.oauth.clientId",
+		"notion.oauth.clientSecret",
+		"notion.oauth.refreshToken",
+		"gmail.enabled",
+		"gmail.interval",
+		"gmail.fetchConcurrency",
+		"gmail.syncFilter",
+		"googleCalendar.enabled",
+		"googleCalendar.interval",
+		"googleCalendar.selectedCalendarIds",
+		"google.clientId",
+		"google.clientSecret",
+		"google.refreshToken",
+	];
+
+	if (supportsAppleNotes(platform)) {
+		keys.splice(15, 0, "appleNotes.enabled", "appleNotes.interval");
+	}
+
+	return keys;
+}
+
 function getHelpLines(): string[] {
+	const connectorUsage = getSupportedRunConnectorIds().join("|");
 	return [
 		"syncdown",
 		"",
@@ -52,9 +109,9 @@ function getHelpLines(): string[] {
 		"  syncdown config set <key> --stdin",
 		"  syncdown config unset <key>",
 		"  syncdown run",
-		"  syncdown run --connector <notion|gmail|google-calendar>",
+		`  syncdown run --connector <${connectorUsage}>`,
 		"  syncdown run --integration <integration-id>",
-		"  syncdown run --reset [--connector <notion|gmail|google-calendar>|--integration <integration-id>]",
+		`  syncdown run --reset [--connector <${connectorUsage}>|--integration <integration-id>]`,
 		"  syncdown run --watch [--interval <5m|15m|1h|6h|24h>]",
 		"  syncdown reset --yes",
 		"  syncdown connectors",
@@ -70,24 +127,7 @@ function getHelpLines(): string[] {
 		"  syncdown config unset ...   Remove config values non-interactively.",
 		"",
 		"Config keys:",
-		"  outputDir",
-		"  notion.enabled",
-		"  notion.interval",
-		"  notion.authMethod",
-		"  notion.token",
-		"  notion.oauth.clientId",
-		"  notion.oauth.clientSecret",
-		"  notion.oauth.refreshToken",
-		"  gmail.enabled",
-		"  gmail.interval",
-		"  gmail.fetchConcurrency",
-		"  gmail.syncFilter",
-		"  googleCalendar.enabled",
-		"  googleCalendar.interval",
-		"  googleCalendar.selectedCalendarIds",
-		"  google.clientId",
-		"  google.clientSecret",
-		"  google.refreshToken",
+		...getConfigSetKeys().map((key) => `  ${key}`),
 		"",
 		"Run exit codes:",
 		`  ${EXIT_CODES.OK} success`,
@@ -172,7 +212,7 @@ async function loadConfig(): Promise<{
 
 function printConfigSetUsage(io: AppIo): void {
 	io.error(
-		"Usage: syncdown config set <outputDir|notion.enabled|notion.interval|notion.authMethod|notion.token|notion.oauth.clientId|notion.oauth.clientSecret|notion.oauth.refreshToken|gmail.enabled|gmail.interval|gmail.fetchConcurrency|gmail.syncFilter|googleCalendar.enabled|googleCalendar.interval|googleCalendar.selectedCalendarIds|google.clientId|google.clientSecret|google.refreshToken> <value|--stdin>",
+		`Usage: syncdown config set <${getConfigSetKeys().join("|")}> <value|--stdin>`,
 	);
 }
 
@@ -184,7 +224,7 @@ function printConfigUnsetUsage(io: AppIo): void {
 
 function printRunUsage(io: AppIo): void {
 	io.error(
-		"Usage: syncdown run [--connector <notion|gmail|google-calendar>|--integration <integration-id>] [--reset] [--watch] [--interval <5m|15m|1h|6h|24h>]",
+		`Usage: syncdown run [--connector <${getSupportedRunConnectorIds().join("|")}>|--integration <integration-id>] [--reset] [--watch] [--interval <5m|15m|1h|6h|24h>]`,
 	);
 }
 
@@ -242,14 +282,11 @@ function parseRunOptions(args: string[], io: AppIo): RunOptions | null {
 
 		if (arg === "--connector") {
 			const value = args[index + 1];
-			if (
-				value !== "notion" &&
-				value !== "gmail" &&
-				value !== "google-calendar"
-			) {
+			const validConnectors = getSupportedRunConnectorIds();
+			if (!value || !isSupportedRunConnectorId(value)) {
 				io.error(
 					value
-						? "--connector must be one of: notion, gmail, google-calendar"
+						? `--connector must be one of: ${validConnectors.join(", ")}`
 						: "--connector requires a value.",
 				);
 				printRunUsage(io);
@@ -330,11 +367,15 @@ function parseRunOptions(args: string[], io: AppIo): RunOptions | null {
 }
 
 async function getCredentialStatus(
-	connectorId: "notion" | "gmail" | "google-calendar",
+	connectorId: "notion" | "gmail" | "google-calendar" | "apple-notes",
 	config: SyncdownConfig,
 	paths: ReturnType<typeof resolveAppPaths>,
 	secrets: ReturnType<typeof createSecretsStore>,
-): Promise<"complete" | "missing"> {
+): Promise<"complete" | "missing" | "local"> {
+	if (connectorId === "apple-notes") {
+		return supportsAppleNotes() ? "local" : "missing";
+	}
+
 	if (connectorId === "notion") {
 		const notionIntegration = getNotionIntegrationConfig(config);
 		if (notionIntegration.connectionId === DEFAULT_NOTION_OAUTH_CONNECTION_ID) {
@@ -384,6 +425,14 @@ function getGoogleCalendarIntegrationConfig(config: SyncdownConfig) {
 	const integration = getDefaultIntegration(config, "google-calendar");
 	if (!isCalendarIntegration(integration)) {
 		throw new Error("Expected default Google Calendar integration");
+	}
+	return integration;
+}
+
+function getAppleNotesIntegrationConfig(config: SyncdownConfig) {
+	const integration = getDefaultIntegration(config, "apple-notes");
+	if (!isAppleNotesIntegration(integration)) {
+		throw new Error("Expected default Apple Notes integration");
 	}
 	return integration;
 }
@@ -603,6 +652,34 @@ async function handleConfigSet(
 			);
 			return EXIT_CODES.OK;
 		}
+		case "appleNotes.enabled": {
+			const parsed = parseBoolean(value.trim());
+			if (parsed === null) {
+				io.error("appleNotes.enabled must be `true` or `false`.");
+				return EXIT_CODES.CONFIG_ERROR;
+			}
+			getAppleNotesIntegrationConfig(config).enabled = parsed;
+			await writeConfig(paths, config);
+			io.write(
+				`Set appleNotes.enabled=${getAppleNotesIntegrationConfig(config).enabled}`,
+			);
+			return EXIT_CODES.OK;
+		}
+		case "appleNotes.interval": {
+			const nextValue = value.trim();
+			if (!isSyncIntervalPreset(nextValue)) {
+				io.error(
+					`appleNotes.interval must be one of: ${INTERVAL_PRESETS.join(", ")}`,
+				);
+				return EXIT_CODES.CONFIG_ERROR;
+			}
+			getAppleNotesIntegrationConfig(config).interval = nextValue;
+			await writeConfig(paths, config);
+			io.write(
+				`Set appleNotes.interval=${getAppleNotesIntegrationConfig(config).interval}`,
+			);
+			return EXIT_CODES.OK;
+		}
 		case GOOGLE_SECRET_NAMES.clientId:
 		case GOOGLE_SECRET_NAMES.clientSecret:
 		case GOOGLE_SECRET_NAMES.refreshToken: {
@@ -699,6 +776,12 @@ async function printOverview(
 	const googleCalendarConfig = getGoogleCalendarIntegrationConfig(
 		snapshot.config,
 	);
+	const appleNotesSupported = snapshot.connectors.some(
+		(connector) => connector.id === "apple-notes",
+	);
+	const appleNotesConfig = appleNotesSupported
+		? getAppleNotesIntegrationConfig(snapshot.config)
+		: null;
 	const notion = snapshot.integrations.find(
 		(integration) => integration.connectorId === "notion",
 	);
@@ -708,6 +791,11 @@ async function printOverview(
 	const googleCalendar = snapshot.integrations.find(
 		(integration) => integration.connectorId === "google-calendar",
 	);
+	const appleNotes = appleNotesSupported
+		? snapshot.integrations.find(
+				(integration) => integration.connectorId === "apple-notes",
+			)
+		: undefined;
 	const [
 		notionCredentials,
 		gmailCredentials,
@@ -724,6 +812,14 @@ async function printOverview(
 		),
 		hasGoogleCredentials(secrets, snapshot.paths),
 	]);
+	const appleNotesCredentials = appleNotesSupported
+		? await getCredentialStatus(
+				"apple-notes",
+				snapshot.config,
+				snapshot.paths,
+				secrets,
+			)
+		: "missing";
 	const hasEnabledConfiguredConnector =
 		((notion?.enabled ?? notionConfig.enabled) &&
 			notionCredentials === "complete") ||
@@ -731,7 +827,10 @@ async function printOverview(
 			gmailCredentials === "complete") ||
 		((googleCalendar?.enabled ?? googleCalendarConfig.enabled) &&
 			googleCalendarCredentials === "complete" &&
-			googleCalendarConfig.config.selectedCalendarIds.length > 0);
+			googleCalendarConfig.config.selectedCalendarIds.length > 0) ||
+		(appleNotesSupported &&
+			(appleNotes?.enabled ?? appleNotesConfig?.enabled ?? false) &&
+			appleNotesCredentials === "local");
 
 	io.write("syncdown");
 	io.write("");
@@ -747,6 +846,11 @@ async function printOverview(
 	io.write(
 		`google-calendar: ${(googleCalendar?.enabled ?? googleCalendarConfig.enabled) ? "enabled" : "disabled"} | interval=${googleCalendar?.interval ?? googleCalendarConfig.interval} | selected calendars=${googleCalendarConfig.config.selectedCalendarIds.length} | credentials=${googleCalendarCredentials} | last sync=${googleCalendar?.lastSyncAt ?? "never"}`,
 	);
+	if (appleNotesSupported && appleNotesConfig) {
+		io.write(
+			`apple-notes: ${(appleNotes?.enabled ?? appleNotesConfig.enabled) ? "enabled" : "disabled"} | interval=${appleNotes?.interval ?? appleNotesConfig.interval} | access=${appleNotesCredentials} | connection=${DEFAULT_APPLE_NOTES_CONNECTION_ID} | last sync=${appleNotes?.lastSyncAt ?? "never"}`,
+		);
+	}
 	io.write("");
 	io.write("Next:");
 
@@ -788,6 +892,10 @@ async function printOverview(
 			io.write(
 				"- Example: `printf '%s' \"$GOOGLE_REFRESH_TOKEN\" | syncdown config set google.refreshToken --stdin`",
 			);
+			if (appleNotesSupported) {
+				io.write("- Example: `syncdown config set appleNotes.enabled true`");
+				io.write("- Example: `syncdown config set appleNotes.interval 1h`");
+			}
 		}
 	} else {
 		io.write("- Run `syncdown run` to start a sync.");
@@ -928,6 +1036,7 @@ export async function runCli(
 				createNotionConnector(),
 				createGmailConnector(),
 				createGoogleCalendarConnector(),
+				...(supportsAppleNotes() ? [createAppleNotesConnector()] : []),
 			],
 			renderer: createMarkdownRenderer(),
 			sink: createFileSystemSink(),

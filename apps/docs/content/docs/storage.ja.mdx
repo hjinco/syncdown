@@ -33,6 +33,12 @@ Google Calendar イベント:
 <outputDir>/google-calendar/<calendar-name>/<year>/<month>/<slug>-<event-id>.md
 ```
 
+Apple Notes:
+
+```text
+<outputDir>/apple-notes/<account>/<folder>/<slug>-<note-id>.md
+```
+
 ## 管理対象の出力
 
 出力ツリーは `syncdown` が管理する出力として扱うのが無難です。
@@ -50,22 +56,20 @@ Google Calendar イベント:
 ```yaml
 ---
 title: "Weekly Update"
-source_url: "https://mail.google.com/mail/u/0/#inbox/18c9..."
-created_at: 2026-03-17T01:23:45.000Z
-updated_at: 2026-03-17T04:56:00.000Z
+source: "https://mail.google.com/mail/u/0/#inbox/18c9..."
+created: "2026-03-17T01:23:45.000Z"
+updated: "2026-03-17T04:56:00.000Z"
 ---
 ```
 
 追加の Notion 固有フィールドには次が含まれる場合があります。
 
-- `source_url`
-- `created_at`
-- `updated_at`
 - `database`
-- `properties`
+- `status`、`due_date`、`assignee_name` のような正規化済み top-level プロパティキー
 
 追加の Gmail 固有フィールドには次が含まれる場合があります。
 
+- `account`
 - `from`
 - `to`
 - `cc`
@@ -73,15 +77,18 @@ updated_at: 2026-03-17T04:56:00.000Z
 
 追加の Google Calendar 固有フィールドには次が含まれる場合があります。
 
-- `calendar_id`
-- `calendar_name`
-- `event_status`
-- `start_at`
-- `end_at`
+- `calendar`
+- `status`
+- `start`
+- `end`
 - `all_day`
 - `location`
 - `organizer`
 - `attendees`
 - `recurrence`
+
+追加の Apple Notes 固有フィールドには次が含まれる場合があります。
+
+- `folder`
 
 フロントマターの後に、`syncdown` は Markdown の `# Title` 見出しとレンダリング済み本文を書き込みます。

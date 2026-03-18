@@ -33,6 +33,12 @@ Google Calendar events:
 <outputDir>/google-calendar/<calendar-name>/<year>/<month>/<slug>-<event-id>.md
 ```
 
+Apple Notes:
+
+```text
+<outputDir>/apple-notes/<account>/<folder>/<slug>-<note-id>.md
+```
+
 ## Managed output
 
 Treat the output tree as `syncdown`-managed output.
@@ -80,5 +86,9 @@ Additional Google Calendar-specific fields may include:
 - `organizer`
 - `attendees`
 - `recurrence`
+
+Additional Apple Notes-specific fields may include:
+
+- `folder`
 
 After the frontmatter, `syncdown` writes a Markdown `# Title` heading followed by the rendered body.

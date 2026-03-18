@@ -18,6 +18,7 @@ syncdown run
 ```sh
 syncdown run --connector notion
 syncdown run --connector google-calendar
+syncdown run --connector apple-notes
 syncdown run --integration notion-default
 ```
 
@@ -51,13 +52,16 @@ interval を指定しない場合の既定値は `1h` です。
 TUI は専用の同期ダッシュボードで次の操作を提供します。
 
 - 有効なすべてのコネクタを即時実行
-- 全体、Notion、Gmail、Google Calendar のフル再同期を実行
+- 全体、Notion、Gmail、Google Calendar、Apple Notes のフル再同期を実行
 - Notion を即時実行
 - Gmail を即時実行
 - Google Calendar を即時実行
+- Apple Notes を即時実行
 - watch モードを開始
 - watch モードを停止
 - 画面上のダッシュボードログを消去
+
+Apple Notes の同期アクションは macOS でのみ利用できます。
 
 `syncdown run --watch` と異なり、TUI ダッシュボードは **integration ごとの watch** モードを開始します。つまり、有効な各コネクタがそれぞれ設定済み interval を使います。
 

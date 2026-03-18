@@ -20,6 +20,7 @@ Target a single connector or integration:
 ```sh
 syncdown run --connector notion
 syncdown run --connector google-calendar
+syncdown run --connector apple-notes
 syncdown run --integration notion-default
 ```
 
@@ -53,14 +54,16 @@ If no interval is provided, the default is `1h`.
 The TUI exposes a separate sync dashboard with these actions:
 
 - run all enabled connectors immediately
-- run full resyncs for all, Notion, or Gmail
-- run full resyncs for all, Notion, Gmail, or Google Calendar
+- run full resyncs for all, Notion, Gmail, Google Calendar, or Apple Notes
 - run Notion immediately
 - run Gmail immediately
 - run Google Calendar immediately
+- run Apple Notes immediately
 - start watch mode
 - stop watch mode
 - clear the visible dashboard log
+
+Apple Notes sync actions are available on macOS.
 
 Unlike `syncdown run --watch`, the TUI dashboard starts **per-integration watch** mode. That means each enabled connector uses its own configured interval.
 

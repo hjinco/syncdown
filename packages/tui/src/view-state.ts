@@ -21,6 +21,7 @@ import {
 	getDraftSelectedGoogleCalendarIds,
 	hasAnyStoredCredentials,
 	INTERVAL_OPTIONS,
+	isAppleNotesSupportedPlatform,
 	isDraftConnectorEnabled,
 	OUTPUT_PRESET_LABELS,
 	type ProviderTarget,
@@ -621,7 +622,9 @@ export function getRouteTitle(route: ConfigRoute): string {
 				? "Notion"
 				: route.connector === "gmail"
 					? "Gmail"
-					: "Google Calendar";
+					: route.connector === "google-calendar"
+						? "Google Calendar"
+						: "Apple Notes";
 		case "connectorAuth":
 			return route.authMethod === "notion-token"
 				? "Notion Token"
@@ -634,7 +637,11 @@ export function getRouteTitle(route: ConfigRoute): string {
 			}
 			return route.connector === "notion"
 				? "Disconnect Notion"
-				: "Disable Gmail";
+				: route.connector === "gmail"
+					? "Disable Gmail"
+					: route.connector === "google-calendar"
+						? "Disable Google Calendar"
+						: "Disable Apple Notes";
 		case "confirmReset":
 			return "Reset App Data";
 		case "output":
@@ -648,7 +655,9 @@ export function getRouteTitle(route: ConfigRoute): string {
 				? "Notion Interval"
 				: route.connector === "gmail"
 					? "Gmail Interval"
-					: "Google Calendar Interval";
+					: route.connector === "google-calendar"
+						? "Google Calendar Interval"
+						: "Apple Notes Interval";
 		case "gmailFilter":
 			return "Gmail Inbox Filter";
 		case "googleCalendarSelection":
@@ -690,9 +699,29 @@ function shouldShowDisconnectAction(
 }
 
 function getConnectedSyncTargets(draft: DraftState): ConnectorTarget[] {
-	return (["notion", "gmail", "google-calendar"] as const).filter(
+	return getVisibleConnectorTargets().filter(
 		(connector) => getConnectorStatus(draft, connector).label === "connected",
 	);
+}
+
+function getVisibleConnectorTargets(): ConnectorTarget[] {
+	return isAppleNotesSupportedPlatform()
+		? ["notion", "gmail", "google-calendar", "apple-notes"]
+		: ["notion", "gmail", "google-calendar"];
+}
+
+function getVisibleConnectorSummaryLines(draft: DraftState): string[] {
+	return getVisibleConnectorTargets().map((connector) => {
+		const label =
+			connector === "notion"
+				? "Notion"
+				: connector === "gmail"
+					? "Gmail"
+					: connector === "google-calendar"
+						? "Google Calendar"
+						: "Apple Notes";
+		return `${label}: ${getConnectorSummaryLine(draft, connector)}`;
+	});
 }
 
 function formatVersion(version: string): string {
@@ -756,9 +785,7 @@ export function getRouteBody(
 			return [
 				...getHomeUpdateBannerLines(route),
 				`Output: ${draft.config.outputDir ?? "<unset>"}`,
-				`Notion: ${getConnectorSummaryLine(draft, "notion")}`,
-				`Gmail: ${getConnectorSummaryLine(draft, "gmail")}`,
-				`Google Calendar: ${getConnectorSummaryLine(draft, "google-calendar")}`,
+				...getVisibleConnectorSummaryLines(draft),
 			].join("\n");
 		case "syncDashboard":
 			return [
@@ -783,9 +810,11 @@ export function getRouteBody(
 					? hasAnyStoredCredentials(draft, route.connector)
 						? "stored Google account"
 						: "missing Google account"
-					: hasAnyStoredCredentials(draft, route.connector)
-						? `stored ${getDraftNotionAuthMethod(draft) === "oauth" ? "OAuth credentials" : "token"}`
-						: "missing";
+					: route.connector === "apple-notes"
+						? "local macOS access"
+						: hasAnyStoredCredentials(draft, route.connector)
+							? `stored ${getDraftNotionAuthMethod(draft) === "oauth" ? "OAuth credentials" : "token"}`
+							: "missing";
 			return [
 				`Status: ${status.label}`,
 				status.description,
@@ -801,7 +830,9 @@ export function getRouteBody(
 						? [
 								`Selected calendars: ${getDraftSelectedGoogleCalendarIds(draft).length}`,
 							]
-						: []),
+						: route.connector === "apple-notes"
+							? ["Source: local Notes app on macOS"]
+							: []),
 			].join("\n");
 		}
 		case "connectorAuth":
@@ -814,7 +845,11 @@ export function getRouteBody(
 			}
 			return route.connector === "notion"
 				? "This will disable the connector and remove its stored credentials immediately."
-				: "This will disable Gmail but keep the stored Google account.";
+				: route.connector === "gmail"
+					? "This will disable Gmail but keep the stored Google account."
+					: route.connector === "google-calendar"
+						? "This will disable Google Calendar but keep the stored Google account."
+						: "This will disable Apple Notes immediately.";
 		case "confirmReset":
 			return [
 				"This will remove all local syncdown app data immediately.",
@@ -1010,7 +1045,9 @@ export function getRouteOptions(
 				},
 				{
 					name: "Connectors",
-					description: `${getConnectorStatus(draft, "notion").label} / ${getConnectorStatus(draft, "gmail").label}`,
+					description: getVisibleConnectorTargets()
+						.map((connector) => getConnectorStatus(draft, connector).label)
+						.join(" / "),
 					value: "connectors",
 				},
 				{
@@ -1021,7 +1058,19 @@ export function getRouteOptions(
 				},
 				{
 					name: "Schedule",
-					description: `Notion ${getDraftInterval(draft, "notion")} | Gmail ${getDraftInterval(draft, "gmail")}`,
+					description: getVisibleConnectorTargets()
+						.map((connector) => {
+							const label =
+								connector === "notion"
+									? "Notion"
+									: connector === "gmail"
+										? "Gmail"
+										: connector === "google-calendar"
+											? "Google Calendar"
+											: "Apple Notes";
+							return `${label} ${getDraftInterval(draft, connector)}`;
+						})
+						.join(" | "),
 					value: "schedule",
 				},
 				{
@@ -1094,6 +1143,15 @@ export function getRouteOptions(
 							},
 						]
 					: []),
+				...(connectedTargets.includes("apple-notes")
+					? [
+							{
+								name: "Run Apple Notes",
+								description: "Run only Apple Notes now",
+								value: "runAppleNotes",
+							},
+						]
+					: []),
 				...(hasConnectedTargets
 					? [
 							{
@@ -1132,6 +1190,16 @@ export function getRouteOptions(
 							},
 						]
 					: []),
+				...(connectedTargets.includes("apple-notes")
+					? [
+							{
+								name: "Run Apple Notes (full resync)",
+								description:
+									"Reset Apple Notes state and rerun it from scratch",
+								value: "runAppleNotesReset",
+							},
+						]
+					: []),
 				{
 					name: "Clear log",
 					description: "Hide existing log lines in this dashboard view",
@@ -1163,8 +1231,35 @@ export function getRouteOptions(
 					description: getConnectorSummaryLine(draft, "google-calendar"),
 					value: "google-calendar",
 				},
+				...(isAppleNotesSupportedPlatform()
+					? [
+							{
+								name: "Apple Notes",
+								description: getConnectorSummaryLine(draft, "apple-notes"),
+								value: "apple-notes",
+							} satisfies UiSelectOption,
+						]
+					: []),
 			];
 		case "connectorDetails":
+			if (route.connector === "apple-notes") {
+				const connectorEnabled = isDraftConnectorEnabled(
+					draft,
+					route.connector,
+				);
+				return [
+					{
+						name: connectorEnabled
+							? "Disable Apple Notes"
+							: "Enable Apple Notes",
+						description: connectorEnabled
+							? "Stop syncing Apple Notes"
+							: "Enable local Apple Notes sync on macOS",
+						value: connectorEnabled ? "disable" : "enable",
+					},
+				];
+			}
+
 			if (
 				route.connector === "gmail" ||
 				route.connector === "google-calendar"
@@ -1304,7 +1399,11 @@ export function getRouteOptions(
 							? "Disconnect account"
 							: route.connector === "notion"
 								? "Disconnect now"
-								: "Disable Gmail",
+								: route.connector === "gmail"
+									? "Disable Gmail"
+									: route.connector === "google-calendar"
+										? "Disable Google Calendar"
+										: "Disable Apple Notes",
 					description:
 						route.mode === "provider"
 							? route.provider === "notion"
@@ -1380,6 +1479,15 @@ export function getRouteOptions(
 					description: "Open the interval picker",
 					value: "google-calendar",
 				},
+				...(isAppleNotesSupportedPlatform()
+					? [
+							{
+								name: `Apple Notes interval: ${getDraftInterval(draft, "apple-notes")}`,
+								description: "Open the interval picker",
+								value: "apple-notes",
+							} satisfies UiSelectOption,
+						]
+					: []),
 			];
 		case "interval":
 			return INTERVAL_OPTIONS.map((interval) => ({

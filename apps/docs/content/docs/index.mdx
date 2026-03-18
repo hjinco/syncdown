@@ -18,13 +18,14 @@ Today, `syncdown` includes:
 - a Notion connector for pages and databases you've allowed the Notion connection to access
 - a Gmail connector for `Primary` inbox messages
 - a Google Calendar connector for selected calendars and event/series exports
+- an Apple Notes connector for local notes on macOS
 - local Markdown rendering into connector-scoped files
 
 ## What it does
 
 At a high level, `syncdown` helps you:
 
-1. Connect supported services such as Notion, Gmail, and Google Calendar.
+1. Connect supported services such as Notion, Gmail, Google Calendar, and Apple Notes.
 2. Choose a local output directory.
 3. Fetch content from those services.
 4. Write one Markdown file per source into a predictable folder structure.
@@ -54,6 +55,13 @@ That makes it useful for local knowledge bases, archives, search indexing, backu
 - Selected-calendar sync
 - Incremental updates using per-calendar sync tokens
 
+### Apple Notes
+
+- One Markdown file per readable local note
+- Local macOS Notes access
+- Account and folder-based output paths
+- Re-runs that keep local Notes content in sync
+
 ## What the output looks like
 
 Rendered files are grouped by connector so they stay easy to inspect.
@@ -65,6 +73,7 @@ notion/pages/project-plan-<source-id>.md
 notion/databases/tasks/task-item-<source-id>.md
 gmail/account-example-com/2026/03/weekly-update-<message-id>.md
 google-calendar/primary/2026/03/team-sync-<event-id>.md
+apple-notes/personal-icloud/scratchpad/daily-notes-note-id-123.md
 ```
 
 Each document starts with YAML frontmatter that preserves connector metadata and source-specific fields. The exact fields depend on the connector.

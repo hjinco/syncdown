@@ -18,9 +18,9 @@ syncdown config set <key> <value>
 syncdown config set <key> --stdin
 syncdown config unset <key>
 syncdown run
-syncdown run --connector <notion|gmail|google-calendar>
+syncdown run --connector <notion|gmail|google-calendar|apple-notes>
 syncdown run --integration <integration-id>
-syncdown run --reset [--connector <notion|gmail|google-calendar>|--integration <integration-id>]
+syncdown run --reset [--connector <notion|gmail|google-calendar|apple-notes>|--integration <integration-id>]
 syncdown run --watch [--interval <5m|15m|1h|6h|24h>]
 syncdown reset --yes
 syncdown connectors
@@ -28,6 +28,8 @@ syncdown doctor
 syncdown update
 syncdown update --check
 ```
+
+在 macOS 上，`syncdown run --connector` 和 `syncdown run --reset --connector` 还支持 `apple-notes`。
 
 ## `syncdown`
 
@@ -46,6 +48,7 @@ syncdown update --check
 - Notion 状态、认证方式、interval、凭证和最近一次同步
 - Gmail 状态、interval、收件箱过滤器、初始同步限制、并发度、凭证和最近一次同步
 - Google Calendar 状态、interval、已选日历数量、凭证和最近一次同步
+- Apple Notes 状态、interval、本地访问、connection ID 和最近一次同步
 
 它还会根据配置是否完成，输出下一步建议。
 
@@ -62,6 +65,8 @@ syncdown config set notion.authMethod token
 syncdown config set gmail.syncFilter primary
 syncdown config set gmail.fetchConcurrency 20
 syncdown config set googleCalendar.selectedCalendarIds primary,work@example.com
+syncdown config set appleNotes.enabled true
+syncdown config set appleNotes.interval 1h
 ```
 
 secret 值示例：
@@ -94,6 +99,7 @@ syncdown run
 ```sh
 syncdown run --connector notion
 syncdown run --connector google-calendar
+syncdown run --connector apple-notes
 syncdown run --integration notion-default
 ```
 

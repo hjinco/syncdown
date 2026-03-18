@@ -1,0 +1,55 @@
+---
+title: Apple Notes
+description: ローカル Notes アプリから何が同期されるかと Apple Notes コネクタの設定方法を説明します。
+---
+
+# Apple Notes
+
+Apple Notes コネクタは、ローカル Notes アプリで読めるノートを Markdown に同期します。
+
+## 対応プラットフォーム
+
+現在 Apple Notes 同期は macOS でのみ対応しています。
+
+`syncdown` は、実行中の同じ Mac 上にある Notes アプリへローカルアクセスできる必要があります。macOS がアクセスをブロックした場合は、コネクタを再実行して権限ダイアログを承認するか、現在のターミナルまたはアプリにアクセス権を付与してください。
+
+## ヘッドレス設定
+
+```sh
+syncdown config set appleNotes.enabled true
+syncdown config set appleNotes.interval 1h
+```
+
+その後、次を実行します。
+
+```sh
+syncdown run --connector apple-notes
+```
+
+## 何が同期されるか
+
+現在このコネクタは次を同期します。
+
+- ノートタイトル
+- Markdown テキストとしてレンダリングされた本文
+- 作成・更新タイムスタンプ
+- アカウント名
+- フォルダパス
+
+現時点では添付ファイルの抽出やコピーは行いません。
+
+## 出力パス
+
+Markdown ファイルはアカウントとフォルダのパス配下に書き込まれます。
+
+```text
+apple-notes/<account>/<folder>/note-title-<note-id>.md
+```
+
+ネストしたフォルダも出力パスにそのまま保持されます。
+
+## 現在の制限
+
+- macOS 専用
+- ローカル Notes へのアクセス権が必要
+- ロックされたノートや読み取れないノートは warning 付きでスキップされる

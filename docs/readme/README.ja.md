@@ -57,11 +57,12 @@ TUI で **Output** を開き、Markdown の出力先を選択します。
 
 ### 3. ソースを接続
 
-**Connectors** を開き、対応しているソースを 1 つ以上設定します。
+**Connectors** を開き、使いたいソースを設定します。
 
 - **Notion**: 接続した Notion 連携にアクセスを許可したページとデータベースを同期
 - **Gmail**: Google OAuth を使って `Primary` 受信トレイを同期
 - **Google Calendar**: 共有 Google OAuth アカウント経由で選択したカレンダーを同期
+- **Apple Notes**: macOS 上のローカルノートを同期
 
 ### 4. 最初の同期を実行
 
@@ -71,6 +72,7 @@ TUI のホーム画面で **Sync** を開き、次のいずれかを実行しま
 - **Run Notion**
 - **Run Gmail**
 - **Run Google Calendar**
+- **Run Apple Notes**
 
 最小限のヘッドレス設定は CLI からも行えます。
 
@@ -117,6 +119,8 @@ syncdown doctor
 notion/pages/project-plan-<source-id>.md
 notion/databases/tasks/task-item-<source-id>.md
 gmail/account-example-com/2026/03/weekly-update-<message-id>.md
+google-calendar/primary/2026/03/team-sync-<event-id>.md
+apple-notes/personal-icloud/scratchpad/daily-notes-note-id-123.md
 ```
 
 レンダリングされた Markdown には、コネクタのメタデータとソース固有の項目が YAML frontmatter として含まれるため、同期したデータを本文と構造化メタデータの両方として扱えます。
@@ -166,21 +170,25 @@ syncdown reset --yes
 
 - **Notion**: token または OAuth 認証
 - **Gmail**: Google OAuth と増分 inbox 同期
+- **Google Calendar**: 共有 Google OAuth と選択カレンダーの増分同期
+- **Apple Notes**: macOS 上のローカルアクセス
 
 コネクタごとの設定方法、対応動作、現在の制限事項は別ドキュメントにあります。
 
-- [Notion connector](./apps/docs/content/docs/connectors/notion.mdx)
-- [Gmail connector](./apps/docs/content/docs/connectors/gmail.mdx)
+- [Notion connector](https://syncdown.dev/docs/connectors/notion)
+- [Gmail connector](https://syncdown.dev/docs/connectors/gmail)
+- [Google Calendar connector](https://syncdown.dev/docs/connectors/google-calendar)
+- [Apple Notes connector](https://syncdown.dev/docs/connectors/apple-notes)
 
 ## Docs
 
 より詳しいガイドは次を参照してください。
 
-- [Getting Started](./apps/docs/content/docs/getting-started.mdx)
-- [Configuration](./apps/docs/content/docs/configuration.mdx)
-- [CLI reference](./apps/docs/content/docs/cli.mdx)
+- [Getting Started](https://syncdown.dev/docs/getting-started)
+- [Configuration](https://syncdown.dev/docs/configuration)
+- [CLI reference](https://syncdown.dev/docs/cli)
 
-詳細ドキュメントの本文は現時点では英語が基準です。日本語の docs UI ルートは利用できますが、翻訳済みページがない箇所は英語コンテンツにフォールバックします。
+詳細ドキュメントの本文は現時点では英語が基準です。英語、韓国語、日本語、簡体字中国語のロケールルートは利用でき、未翻訳ページは英語コンテンツにフォールバックします。
 
 ## Developing syncdown
 

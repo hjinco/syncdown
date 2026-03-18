@@ -33,6 +33,12 @@ Google Calendar 事件：
 <outputDir>/google-calendar/<calendar-name>/<year>/<month>/<slug>-<event-id>.md
 ```
 
+Apple Notes：
+
+```text
+<outputDir>/apple-notes/<account>/<folder>/<slug>-<note-id>.md
+```
+
 ## 受管理的输出
 
 建议将输出树视为由 `syncdown` 管理的输出。
@@ -50,22 +56,20 @@ Google Calendar 事件：
 ```yaml
 ---
 title: "Weekly Update"
-source_url: "https://mail.google.com/mail/u/0/#inbox/18c9..."
-created_at: 2026-03-17T01:23:45.000Z
-updated_at: 2026-03-17T04:56:00.000Z
+source: "https://mail.google.com/mail/u/0/#inbox/18c9..."
+created: "2026-03-17T01:23:45.000Z"
+updated: "2026-03-17T04:56:00.000Z"
 ---
 ```
 
 额外的 Notion 专属字段可能包括：
 
-- `source_url`
-- `created_at`
-- `updated_at`
 - `database`
-- `properties`
+- 经过规范化的顶层属性键，例如 `status`、`due_date` 或 `assignee_name`
 
 额外的 Gmail 专属字段可能包括：
 
+- `account`
 - `from`
 - `to`
 - `cc`
@@ -73,15 +77,18 @@ updated_at: 2026-03-17T04:56:00.000Z
 
 额外的 Google Calendar 专属字段可能包括：
 
-- `calendar_id`
-- `calendar_name`
-- `event_status`
-- `start_at`
-- `end_at`
+- `calendar`
+- `status`
+- `start`
+- `end`
 - `all_day`
 - `location`
 - `organizer`
 - `attendees`
 - `recurrence`
+
+额外的 Apple Notes 专属字段可能包括：
+
+- `folder`
 
 在 frontmatter 之后，`syncdown` 会写入 Markdown `# Title` 标题以及渲染后的正文。
