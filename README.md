@@ -161,17 +161,19 @@ Use `syncdown config set <key> <value>` and `syncdown config unset <key>` for no
 
 Connector-specific setup details, supported behavior, and current limits are documented separately:
 
-- [Notion connector](./apps/docs/content/docs/connectors/notion.mdx)
-- [Gmail connector](./apps/docs/content/docs/connectors/gmail.mdx)
-- [Google Calendar connector](./apps/docs/content/docs/connectors/google-calendar.mdx)
+- [Notion connector](https://syncdown.dev/docs/content/docs/connectors/notion.mdx)
+- [Gmail connector](https://syncdown.dev/docs/connectors/gmail.mdx)
+- [Google Calendar connector](https://syncdown.dev/docs/connectors/google-calendar.mdx)
 
 ## Docs
 
+Full documentation is published at [syncdown.dev](https://syncdown.dev).
+
 For more detailed guides, see:
 
-- [Getting Started](./apps/docs/content/docs/getting-started.mdx)
-- [Configuration](./apps/docs/content/docs/configuration.mdx)
-- [CLI reference](./apps/docs/content/docs/cli.mdx)
+- [Getting Started](https://syncdown.dev/docs/getting-started)
+- [Configuration](https://syncdown.dev/docs/configuration)
+- [CLI reference](https://syncdown.dev/docs/cli)
 
 The docs app defaults to English content today. Locale-aware docs routes now exist for English, Korean, Japanese, and Simplified Chinese, with English content fallback until translated pages are available.
 
