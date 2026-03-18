@@ -2082,6 +2082,101 @@ test("sync dashboard can start watch and run actions", async () => {
 	tui.destroy();
 });
 
+test("sync dashboard can cancel an active run while the start action is still busy", async () => {
+	const { renderer } = await createTestRenderer({ width: 100, height: 30 });
+	const session = createSessionStub();
+	let resolveRunNow: (() => void) | null = null;
+
+	session.session.runNow = async (target, options) => {
+		session.runCalls.push({ target, options });
+		await new Promise<void>((resolve) => {
+			resolveRunNow = resolve;
+		});
+	};
+
+	const tui = await ConfigTuiApp.create(
+		{
+			app: createApp(),
+			io: createIo(),
+			secrets: createSecretsStore().store,
+			session: session.session,
+		},
+		createPaths(),
+		createDraftState(createConfig(), {
+			notionTokenStored: true,
+			googleClientIdStored: false,
+			googleClientSecretStored: false,
+			googleRefreshTokenStored: false,
+		}),
+		renderer,
+		createDefaultAuthService(),
+	);
+
+	(tui as any).ui.routes = [
+		createSyncDashboardRoute(session.session.getSnapshot()),
+	];
+
+	const runPromise = (tui as any).activateCurrentSelection();
+	await Promise.resolve();
+	expect((tui as any).ui.routes.at(-1).busy).toBe(true);
+
+	session.pushSnapshot(
+		createSyncSnapshot({
+			status: "running",
+			integrations: [
+				{
+					id: NOTION_INTEGRATION_ID,
+					connectorId: "notion",
+					connectionId: "notion-token-default",
+					label: "Notion",
+					enabled: true,
+					interval: "1h",
+					status: "running",
+					running: true,
+					queuedImmediateRun: false,
+					lastStartedAt: "2026-03-17T00:00:00.000Z",
+					lastFinishedAt: null,
+					lastSuccessAt: null,
+					lastError: null,
+					lastDocumentsWritten: 0,
+					nextRunAt: null,
+					progress: null,
+				},
+			],
+		}),
+	);
+
+	expect(
+		getRouteOptions((tui as any).ui.routes.at(-1), (tui as any).draft).map(
+			(option) => option.name,
+		),
+	).toEqual(["Stop sync"]);
+
+	await (tui as any).activateCurrentSelection();
+	expect(session.cancelCalls).toBe(1);
+	expect((tui as any).ui.routes.at(-1).busy).toBe(true);
+	expect((tui as any).ui.notice).toEqual({
+		kind: "success",
+		text: "Cancelling sync...",
+	});
+	await (tui as any).handleBack();
+	expect((tui as any).ui.routes.at(-1).id).toBe("syncDashboard");
+	expect((tui as any).ui.notice).toEqual({
+		kind: "error",
+		text: "Stop the current sync before leaving the sync dashboard.",
+	});
+
+	resolveRunNow?.();
+	await runPromise;
+	expect((tui as any).ui.routes.at(-1).busy).toBe(false);
+	expect((tui as any).ui.notice).toEqual({
+		kind: "success",
+		text: "Sync cancelled.",
+	});
+
+	tui.destroy();
+});
+
 test("sync dashboard renders compact cards and progress at 100x30", async () => {
 	const { renderer, renderOnce, captureCharFrame } = await createTestRenderer({
 		width: 100,

@@ -60,6 +60,7 @@ export interface SyncDashboardRoute extends BaseRoute {
 	snapshot: SyncRuntimeSnapshot;
 	clearedAfter: string | null;
 	busy: boolean;
+	cancelPending: boolean;
 	showDetailedLogs: boolean;
 }
 
@@ -312,6 +313,7 @@ export function createSyncDashboardRoute(
 		snapshot,
 		clearedAfter: null,
 		busy: false,
+		cancelPending: false,
 		showDetailedLogs: false,
 	};
 }
