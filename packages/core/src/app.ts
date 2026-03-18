@@ -159,9 +159,9 @@ export function createSyncdownApp(
 					const deletedPaths = resetPaths(paths);
 					await services.state.dispose?.();
 
-					for (const filePath of deletedPaths) {
-						await rm(filePath, { force: true });
-					}
+					await Promise.all(
+						deletedPaths.map((filePath) => rm(filePath, { force: true })),
+					);
 
 					await lock.release();
 					released = true;
