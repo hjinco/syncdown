@@ -1,0 +1,29 @@
+---
+title: 커넥터
+description: Notion, Gmail, Google Calendar별 설정과 동작을 설명합니다.
+---
+
+# 커넥터
+
+현재 `syncdown`에는 세 가지 커넥터가 있습니다.
+
+- [Notion](/docs/connectors/notion)
+- [Gmail](/docs/connectors/gmail)
+- [Google Calendar](/docs/connectors/google-calendar)
+
+세 커넥터 모두 같은 렌더러와 파일시스템 sink를 통해 Markdown을 쓰지만, 인증 흐름, 데이터 발견 방식, 동기화 의미론은 서로 다릅니다.
+
+## 공통 동작
+
+모든 커넥터는 다음과 같습니다.
+
+- 동기화 전에 자격 증명을 검증합니다.
+- 동기화 시작 전에 검증을 실행합니다.
+- 커넥터/integration 범위의 Markdown 경로에 출력을 씁니다.
+- 이후 실행에서는 기존 증분 동기화 상태를 재사용합니다.
+
+## 커넥터별 가이드
+
+- [Notion](/docs/connectors/notion)은 토큰과 OAuth 설정, 페이지 탐색, 데이터 소스 동작을 다룹니다.
+- [Gmail](/docs/connectors/gmail)은 Google OAuth, Primary 범위 동기화 필터, Gmail history 기반 증분 동작을 다룹니다.
+- [Google Calendar](/docs/connectors/google-calendar)는 공유 Google OAuth, 캘린더 선택, 이벤트 증분 동기화를 다룹니다.

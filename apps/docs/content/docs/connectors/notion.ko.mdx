@@ -1,0 +1,136 @@
+---
+title: Notion
+description: Notion 토큰 또는 OAuth 접근을 설정하고 커넥터가 무엇을 동기화하는지 이해합니다.
+---
+
+# Notion
+
+## 지원되는 인증 방식
+
+Notion 커넥터는 두 가지 인증 방식을 지원합니다.
+
+- **Token**
+- **OAuth**
+
+영속 설정에서는 `notion.authMethod`로 활성 방식을 선택합니다.
+
+## 여기서 OAuth가 의미하는 것
+
+OAuth를 사용하면 `syncdown`에 Notion 계정 비밀번호를 붙여넣는 대신 브라우저에서 접근을 승인할 수 있습니다.
+
+Notion 커넥터에서는 다음을 의미합니다.
+
+- Notion **public integration**을 만들거나 기존 것을 재사용합니다.
+- 해당 integration의 client ID와 client secret을 `syncdown`에 입력합니다.
+- 연결할 workspace 또는 account에 대해 Notion이 브라우저 동의 화면을 표시합니다.
+- 이후 동기화 때마다 다시 연결하지 않아도 되도록 `syncdown`이 callback code를 token으로 교환합니다.
+
+이후 실행에서는 승인된 연결을 계속 사용할 수 있으므로 매번 다시 연결할 필요가 없습니다.
+
+브라우저 기반 OAuth 흐름을 원하지 않는다면 토큰 기반 설정을 계속 사용할 수 있습니다.
+
+## TUI 설정
+
+**Connectors → Notion**을 엽니다.
+
+### Token 흐름
+
+**Connect with Token**을 선택합니다.
+
+TUI는 Notion integrations 페이지를 엽니다.
+
+[Notion integrations](https://www.notion.so/profile/integrations)
+
+그다음 토큰을 요청하고 저장 전에 검증합니다.
+
+### OAuth 흐름
+
+**Connect with OAuth**를 선택합니다.
+
+TUI는 다음을 요청합니다.
+
+- Notion public integration client ID
+- Notion public integration client secret
+
+그 후 브라우저를 열고 로컬 callback을 기다리며, 반환된 access token을 검증한 뒤 연결을 완료합니다.
+
+### 시작 전에
+
+Notion integrations 페이지에서 Notion **public integration**을 준비하세요.
+
+직접 열기: [Notion integrations](https://www.notion.so/profile/integrations).
+
+필요한 값:
+
+- public integration client ID
+- public integration client secret
+
+`syncdown`은 TUI에서 integrations 페이지를 열어 새 integration을 만들거나 기존 integration의 값을 복사할 수 있게 합니다.
+
+### 연결 중 일어나는 일
+
+1. client ID를 붙여넣습니다.
+2. client secret을 붙여넣습니다.
+3. `syncdown`이 브라우저에서 Notion 동의 화면을 엽니다.
+4. 원하는 workspace 또는 account에 대한 접근을 승인합니다.
+5. Notion이 `syncdown`이 띄운 로컬 callback 서버로 리디렉션합니다.
+6. `syncdown`이 반환된 access token을 검증하고 연결을 완료합니다.
+
+### Token vs OAuth
+
+- 이미 Notion integration token을 직접 관리하고 있고 가장 단순한 비브라우저 설정을 원한다면 **Token**을 사용하세요.
+- 브라우저 승인 흐름을 선호하고 이후 동기화에서도 연결을 계속 유지하고 싶다면 **OAuth**를 사용하세요.
+
+## 헤드리스 설정
+
+Token 흐름:
+
+```sh
+syncdown config set notion.enabled true
+syncdown config set notion.authMethod token
+printf '%s' "$NOTION_TOKEN" | syncdown config set notion.token --stdin
+```
+
+OAuth 흐름:
+
+```sh
+syncdown config set notion.enabled true
+syncdown config set notion.authMethod oauth
+printf '%s' "$NOTION_CLIENT_ID" | syncdown config set notion.oauth.clientId --stdin
+printf '%s' "$NOTION_CLIENT_SECRET" | syncdown config set notion.oauth.clientSecret --stdin
+printf '%s' "$NOTION_REFRESH_TOKEN" | syncdown config set notion.oauth.refreshToken --stdin
+```
+
+## 무엇이 동기화되는가
+
+이 커넥터는 다음을 수행합니다.
+
+- 선택한 token 또는 OAuth 자격 증명을 검증합니다.
+- 선택한 integration 또는 OAuth로 연결된 account가 접근 가능한 Notion 페이지를 찾습니다.
+- 선택한 integration 또는 OAuth로 연결된 account가 접근 가능한 Notion 데이터베이스를 찾습니다.
+- 발견된 각 데이터베이스 내부의 페이지를 조회합니다.
+- 각 후보 페이지의 메타데이터와 Markdown을 가져옵니다.
+
+데이터베이스 이름을 알 수 있으면, 발견된 데이터베이스의 페이지는 데이터베이스별 디렉터리에 기록됩니다.
+
+렌더링된 Notion Markdown에는 다음 YAML frontmatter가 포함됩니다.
+
+- `title`, `source`, `created`, `updated` 같은 공통 필드
+- 동기화된 데이터베이스에서 온 페이지라면 `database`
+- `status`, `due_date`, `담당자_이름`처럼 프론트매터 친화적으로 정규화된 Notion top-level 속성 키
+
+중첩된 `properties:` 프론트매터는 출력하지 않습니다.
+
+## 증분 동작
+
+커넥터는 실행 사이에 cursor를 저장합니다.
+
+동기화된 데이터베이스에 대해서는 그 cursor를 사용해 증분 페이지 후보를 요청합니다. 반면 선택한 integration 또는 OAuth account가 접근 가능한 최상위 페이지는 매 실행마다 다시 탐색합니다.
+
+또한 SQLite에 스냅샷을 저장해 소스와 렌더 버전이 바뀌지 않았을 때 불필요한 재기록을 피합니다.
+
+## 현재 제약
+
+- 선택한 integration 또는 OAuth account가 접근 가능한 콘텐츠만 볼 수 있습니다.
+- 현재 구현은 접근 가능한 페이지와 데이터베이스를 대상으로 하며, 가능한 모든 Notion 객체 타입을 다루지는 않습니다.
+- 크거나 복잡한 Notion 콘텐츠는 실제 내보내기에 의존하기 전에 워크스페이스에서 검증하는 것이 좋습니다.

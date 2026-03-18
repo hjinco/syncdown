@@ -1,0 +1,153 @@
+---
+title: CLI
+description: CLI에서 syncdown을 운영하기 위한 인터랙티브 진입점과 명령 레퍼런스입니다.
+---
+
+# CLI
+
+이 페이지는 `syncdown`의 명령 레퍼런스입니다.
+
+헤드리스 설정을 단계별로 진행하고 싶다면 [설정](/docs/configuration)부터 읽으세요. 인터랙티브 설정 경로가 필요하다면 [시작하기](/docs/getting-started)를 참고하세요.
+
+## 최상위 명령
+
+```text
+syncdown
+syncdown status
+syncdown config set <key> <value>
+syncdown config set <key> --stdin
+syncdown config unset <key>
+syncdown run
+syncdown run --connector <notion|gmail|google-calendar>
+syncdown run --integration <integration-id>
+syncdown run --reset [--connector <notion|gmail|google-calendar>|--integration <integration-id>]
+syncdown run --watch [--interval <5m|15m|1h|6h|24h>]
+syncdown connectors
+syncdown doctor
+syncdown update
+syncdown update --check
+```
+
+## `syncdown`
+
+인터랙티브 터미널에서는 `syncdown`이 TUI를 실행합니다.
+
+TTY가 없으면 도움말을 출력하고 설정 오류와 함께 종료합니다.
+
+이 명령은 인터랙티브 진입점이며, 헤드리스 설정 가이드는 아닙니다.
+
+## `syncdown status`
+
+다음 항목의 상위 수준 요약을 보여줍니다.
+
+- 출력 디렉터리
+- Google 자격 증명 상태
+- Notion 상태, 인증 방식, interval, 자격 증명, 마지막 동기화
+- Gmail 상태, interval, 받은편지함 필터, 초기 동기화 제한, 동시성, 자격 증명, 마지막 동기화
+- Google Calendar 상태, interval, 선택된 캘린더 수, 자격 증명, 마지막 동기화
+
+또한 설정 완료 여부에 따라 다음 단계 안내도 출력합니다.
+
+## `syncdown config set`
+
+비밀이 아닌 설정 값을 저장하거나 `--stdin`을 통해 secret 값을 설정할 때 사용합니다.
+
+예시:
+
+```sh
+syncdown config set outputDir /path/to/output
+syncdown config set notion.enabled true
+syncdown config set notion.authMethod token
+syncdown config set gmail.syncFilter primary
+syncdown config set gmail.fetchConcurrency 20
+syncdown config set googleCalendar.selectedCalendarIds primary,work@example.com
+```
+
+secret 값 예시:
+
+```sh
+printf '%s' "$TOKEN" | syncdown config set notion.token --stdin
+printf '%s' "$GOOGLE_REFRESH_TOKEN" | syncdown config set google.refreshToken --stdin
+```
+
+## `syncdown config unset`
+
+예시:
+
+```sh
+syncdown config unset outputDir
+syncdown config unset notion.token
+syncdown config unset google.clientSecret
+```
+
+## `syncdown run`
+
+활성화된 모든 커넥터를 한 번 실행:
+
+```sh
+syncdown run
+```
+
+특정 커넥터 또는 integration만 한 번 실행:
+
+```sh
+syncdown run --connector notion
+syncdown run --connector google-calendar
+syncdown run --integration notion-default
+```
+
+integration을 재실행하기 전에 초기화:
+
+```sh
+syncdown run --integration notion-default --reset
+```
+
+`--reset`은 동기화가 시작되기 전에 선택한 integration의 cursor, 마지막 동기화 시각, 추적 레코드, 저장된 스냅샷, 렌더링된 파일을 지웁니다.
+
+전역 watch 모드 시작:
+
+```sh
+syncdown run --watch
+syncdown run --watch --interval 15m
+```
+
+## `syncdown connectors`
+
+각 integration에 대해 다음을 나열합니다.
+
+- connector ID
+- enabled 플래그
+- interval
+- 자격 증명 완전성
+- 마지막 동기화 시각
+
+## `syncdown doctor`
+
+다음과 같은 운영 진단과 검증 세부사항을 출력합니다.
+
+- integration별 검증 결과
+- 출력 디렉터리 쓰기 가능 여부
+- 로컬 상태와 설정 상태 관련 진단
+
+## `syncdown update`
+
+새 릴리스가 있는지 확인:
+
+```sh
+syncdown update --check
+```
+
+최신 공개 릴리스 바이너리를 다운로드하고 설치:
+
+```sh
+syncdown update
+```
+
+self-update는 공개 릴리스 바이너리에서만 동작합니다. Bun으로 소스에서 CLI를 실행 중이면 `syncdown update`는 self-update를 사용할 수 없다고 보고합니다.
+
+## 도움말
+
+```sh
+syncdown --help
+syncdown -h
+```

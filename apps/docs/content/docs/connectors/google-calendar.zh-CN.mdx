@@ -1,0 +1,117 @@
+---
+title: Google Calendar
+description: 通过共享 Google OAuth 连接 Google Calendar，并了解所选日历的事件同步行为。
+---
+
+# Google Calendar
+
+## 认证模型
+
+Google Calendar connector 使用共享的 Google OAuth 账号，并要求 Calendar readonly scope：
+
+```text
+https://www.googleapis.com/auth/calendar.readonly
+```
+
+如果 Gmail 也已启用，`syncdown` 会在同一个 Google 账号上请求 Gmail 与 Calendar scope 的并集。
+
+## 这里的 OAuth 是什么意思
+
+OAuth 让你在浏览器里批准日历访问，而不是把 Google 账号密码分享给 `syncdown`。
+
+对于 Google Calendar，这意味着：
+
+- 你需要创建或复用一个 Google **Desktop app** OAuth client
+- 把 client ID 和 client secret 粘贴到 `syncdown`
+- Google 会为 `syncdown` 所需的 Calendar scope 显示浏览器授权界面
+- `syncdown` 会完成连接，这样后续同步时无需每次重新连接
+
+Google OAuth 账号由 Gmail 和 Google Calendar connector 共享。只要具备所有需要的 scope，同一个 Google 账号就可以满足两个 connector。
+
+## TUI 设置
+
+打开 **Connectors → Google Calendar**。
+
+如果共享 Google 账号还未连接，或需要升级 scope，请使用 **Connect Google account**，然后打开 **Select calendars** 选择要同步的日历。
+
+### 开始前准备
+
+先在 Google Cloud Console 中准备一个 Google **Desktop app** OAuth client。
+
+直接打开设置页：[Google Auth platform clients](https://console.cloud.google.com/auth/clients)。
+
+你需要：
+
+- Desktop app client ID
+- Desktop app client secret
+
+TUI 会打开 Google OAuth client 配置页，方便你创建新的 client 或复制现有值。
+
+### 连接过程中会发生什么
+
+1. 粘贴 Google client ID。
+2. 粘贴 Google client secret。
+3. `syncdown` 在浏览器中打开 Google 授权界面。
+4. 批准请求的 Calendar readonly scope。
+5. Google 重定向回 `syncdown` 启动的本地 callback 服务器。
+6. `syncdown` 校验授予的 scope 并完成连接。
+7. 回到 **Select calendars**，选择要同步的日历。
+
+### 共享 Google 账号与 scope 升级
+
+- Gmail 与 Google Calendar 使用 `syncdown` 中保存的同一个 Google 账号。
+- 如果你先连接了 Gmail，那么 Google Calendar 可能需要重新连接，以便 Google 授予额外的 Calendar scope。
+- 如果你先连接了 Calendar，那么之后启用 Gmail 时也可能需要为了 Gmail scope 重新连接。
+- 重新连接会更新共享 Google 账号的凭证；你不需要为每个 connector 准备独立的 Google 账号。
+
+## 无界面配置
+
+```sh
+syncdown config set googleCalendar.enabled true
+syncdown config set googleCalendar.interval 1h
+syncdown config set googleCalendar.selectedCalendarIds primary,work@example.com
+
+printf '%s' "$GOOGLE_CLIENT_ID" | syncdown config set google.clientId --stdin
+printf '%s' "$GOOGLE_CLIENT_SECRET" | syncdown config set google.clientSecret --stdin
+printf '%s' "$GOOGLE_REFRESH_TOKEN" | syncdown config set google.refreshToken --stdin
+```
+
+## 会同步什么
+
+当前 Google Calendar connector 会：
+
+- 仅同步 `googleCalendar.selectedCalendarIds` 中列出的日历
+- 为每个事件或重复系列写入一个 Markdown 文件
+- 将重复系列保留为系列级文档，而不是展开为每次 occurrence
+- 保存事件元数据以及描述正文
+- 按日历、年份和月份组织输出
+
+## 增量行为
+
+首次运行时，`syncdown` 会对每个已选日历执行一次完整扫描，并存储按日历划分的 sync token。
+
+在后续运行中，它会使用这些按日历划分的 sync token 仅获取发生变化的事件。
+
+如果某个已存储的 sync token 过期，`syncdown` 会回退到该日历的一次完整重建。
+
+如果你从 `googleCalendar.selectedCalendarIds` 中移除某个日历，`syncdown` 会在下一次同步时删除该日历对应的本地 Markdown 文件。
+
+## 配置选项
+
+### `googleCalendar.selectedCalendarIds`
+
+用逗号分隔要包含在同步中的日历 ID。
+
+示例：
+
+```text
+primary
+primary,work@example.com
+```
+
+## 当前限制
+
+- 仅支持所选日历
+- 不支持按 occurrence 展开重复事件
+- 不支持任意日期窗口同步
+- 无人值守运行需要有效的 Google refresh token

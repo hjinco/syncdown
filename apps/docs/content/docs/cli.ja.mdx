@@ -1,0 +1,153 @@
+---
+title: CLI
+description: CLI から syncdown を操作するための対話型エントリーポイントとコマンドリファレンスです。
+---
+
+# CLI
+
+このページは `syncdown` のコマンドリファレンスです。
+
+ヘッドレス設定を段階的に進めたい場合は [設定](/docs/configuration) から始めてください。対話型のセットアップを行いたい場合は [はじめに](/docs/getting-started) を参照してください。
+
+## トップレベルコマンド
+
+```text
+syncdown
+syncdown status
+syncdown config set <key> <value>
+syncdown config set <key> --stdin
+syncdown config unset <key>
+syncdown run
+syncdown run --connector <notion|gmail|google-calendar>
+syncdown run --integration <integration-id>
+syncdown run --reset [--connector <notion|gmail|google-calendar>|--integration <integration-id>]
+syncdown run --watch [--interval <5m|15m|1h|6h|24h>]
+syncdown connectors
+syncdown doctor
+syncdown update
+syncdown update --check
+```
+
+## `syncdown`
+
+対話型ターミナルでは `syncdown` が TUI を起動します。
+
+TTY がない場合はヘルプを表示して、設定エラーで終了します。
+
+これは対話型のエントリーポイントであり、ヘッドレス設定ガイドではありません。
+
+## `syncdown status`
+
+次の内容を高い粒度で表示します。
+
+- 出力ディレクトリ
+- Google 認証情報の状態
+- Notion の状態、認証方式、interval、認証情報、前回同期
+- Gmail の状態、interval、受信トレイフィルタ、初回同期上限、並列度、認証情報、前回同期
+- Google Calendar の状態、interval、選択済みカレンダー数、認証情報、前回同期
+
+設定が完了しているかどうかに応じて、次に取るべきガイダンスも表示します。
+
+## `syncdown config set`
+
+シークレットではない設定値を保存したり、`--stdin` 経由で secret 値を設定したりするために使います。
+
+例:
+
+```sh
+syncdown config set outputDir /path/to/output
+syncdown config set notion.enabled true
+syncdown config set notion.authMethod token
+syncdown config set gmail.syncFilter primary
+syncdown config set gmail.fetchConcurrency 20
+syncdown config set googleCalendar.selectedCalendarIds primary,work@example.com
+```
+
+secret 値の例:
+
+```sh
+printf '%s' "$TOKEN" | syncdown config set notion.token --stdin
+printf '%s' "$GOOGLE_REFRESH_TOKEN" | syncdown config set google.refreshToken --stdin
+```
+
+## `syncdown config unset`
+
+例:
+
+```sh
+syncdown config unset outputDir
+syncdown config unset notion.token
+syncdown config unset google.clientSecret
+```
+
+## `syncdown run`
+
+有効なすべてのコネクタを 1 回実行:
+
+```sh
+syncdown run
+```
+
+特定のコネクタまたは integration を 1 回実行:
+
+```sh
+syncdown run --connector notion
+syncdown run --connector google-calendar
+syncdown run --integration notion-default
+```
+
+integration を再実行する前にリセットする:
+
+```sh
+syncdown run --integration notion-default --reset
+```
+
+`--reset` は、同期開始前に選択した integration の cursor、前回同期時刻、追跡レコード、保存済みスナップショット、レンダリング済みファイルを消去します。
+
+グローバル watch モードを開始:
+
+```sh
+syncdown run --watch
+syncdown run --watch --interval 15m
+```
+
+## `syncdown connectors`
+
+各 integration について次を一覧表示します。
+
+- connector ID
+- enabled フラグ
+- interval
+- 認証情報の充足状況
+- 前回同期時刻
+
+## `syncdown doctor`
+
+次のような運用診断と検証詳細を表示します。
+
+- integration ごとの検証結果
+- 出力ディレクトリが書き込み可能か
+- ローカル状態とセットアップ健全性の診断
+
+## `syncdown update`
+
+新しいリリースがあるか確認する:
+
+```sh
+syncdown update --check
+```
+
+最新の公開リリースバイナリをダウンロードしてインストールする:
+
+```sh
+syncdown update
+```
+
+self-update は公開リリースバイナリでのみ動作します。Bun でソースから CLI を実行している場合、`syncdown update` は self-update が利用できないと報告します。
+
+## ヘルプ
+
+```sh
+syncdown --help
+syncdown -h
+```

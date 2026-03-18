@@ -7,6 +7,29 @@ export type AppLocale = (typeof locales)[number];
 
 export const defaultLocale: AppLocale = "en";
 
+const appMetadata = {
+	en: {
+		title: "syncdown Docs",
+		description:
+			"User documentation for syncdown, an interactive CLI that syncs Notion, Gmail, and Google Calendar into local Markdown.",
+	},
+	ko: {
+		title: "syncdown 문서",
+		description:
+			"Notion, Gmail, Google Calendar를 로컬 Markdown으로 동기화하는 인터랙티브 CLI syncdown의 사용자 문서입니다.",
+	},
+	ja: {
+		title: "syncdown ドキュメント",
+		description:
+			"Notion、Gmail、Google Calendar をローカル Markdown に同期する対話型 CLI、syncdown のユーザードキュメントです。",
+	},
+	"zh-CN": {
+		title: "syncdown 文档",
+		description:
+			"syncdown 用户文档。syncdown 是一个可将 Notion、Gmail 和 Google Calendar 同步到本地 Markdown 的交互式 CLI。",
+	},
+} satisfies Record<AppLocale, { title: string; description: string }>;
+
 export const docsI18n = defineI18n({
 	languages: [...locales],
 	defaultLanguage: defaultLocale,
@@ -126,6 +149,10 @@ export function getDocsPath(locale: AppLocale, slug?: string): string {
 
 export function getHomePath(locale: AppLocale): string {
 	return localizePath("/", locale);
+}
+
+export function getAppMetadata(locale: AppLocale) {
+	return appMetadata[locale];
 }
 
 export function getMarkdownPath(locale: AppLocale, slugs: string[]): string {

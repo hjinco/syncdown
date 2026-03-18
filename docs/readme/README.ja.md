@@ -170,7 +170,6 @@ syncdown update --check
 より詳しいガイドは次を参照してください。
 
 - [Getting Started](./apps/docs/content/docs/getting-started.mdx)
-- [Installation](./apps/docs/content/docs/installation.mdx)
 - [Configuration](./apps/docs/content/docs/configuration.mdx)
 - [CLI reference](./apps/docs/content/docs/cli.mdx)
 

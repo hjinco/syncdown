@@ -1,0 +1,95 @@
+---
+title: 同步
+description: 运行单次同步、watch 模式和 TUI 同步面板。
+---
+
+# 同步
+
+## 运行一次同步周期
+
+使用 CLI 将所有已启用的 connector 运行一次：
+
+```sh
+syncdown run
+```
+
+也可以只针对某个 connector 或 integration：
+
+```sh
+syncdown run --connector notion
+syncdown run --connector google-calendar
+syncdown run --integration notion-default
+```
+
+如果要对选定目标强制执行完整重同步：
+
+```sh
+syncdown run --integration notion-default --reset
+```
+
+`--reset` 仅适用于单次运行。它会在新一轮同步开始前清除选定 integration 的状态并删除其渲染后的 Markdown 文件。
+
+## 全局 CLI watch 模式
+
+保持进程存活，并以同一个共享 interval 重新运行所有已启用的 connector：
+
+```sh
+syncdown run --watch
+syncdown run --watch --interval 5m
+```
+
+支持的 watch interval：
+
+```text
+5m, 15m, 1h, 6h, 24h
+```
+
+如果不提供 interval，默认值为 `1h`。
+
+## TUI 同步面板
+
+TUI 提供一个独立的同步面板，包含以下操作：
+
+- 立即运行所有已启用的 connector
+- 对全部、Notion、Gmail、Google Calendar 执行完整重同步
+- 立即运行 Notion
+- 立即运行 Gmail
+- 立即运行 Google Calendar
+- 启动 watch 模式
+- 停止 watch 模式
+- 清除当前可见的面板日志
+
+与 `syncdown run --watch` 不同，TUI 面板启动的是 **按 integration 的 watch** 模式。也就是说，每个已启用的 connector 都会使用自己配置的 interval。
+
+## 运行时行为
+
+在同步会话期间，`syncdown` 会跟踪：
+
+- 当前状态：`idle`、`running` 或 `watching`
+- 每个 integration 的状态以及排队中的运行
+- 最近的日志行
+- 上一次运行目标、时间戳、退出码和最后一个错误
+
+这些状态会驱动 TUI 面板和 watch 循环。
+
+## 退出码
+
+CLI 提供明确的运行退出码：
+
+| 代码 | 含义 |
+| --- | --- |
+| `0` | 成功 |
+| `2` | 配置错误 |
+| `3` | 已有另一项同步正在运行 |
+| `4` | connector 校验失败 |
+| `5` | connector 同步失败 |
+
+## 相关命令
+
+```sh
+syncdown status
+syncdown connectors
+syncdown doctor
+```
+
+`status` 用于快速摘要，`connectors` 用于查看 connector 列表，`doctor` 用于路径和健康状态诊断。

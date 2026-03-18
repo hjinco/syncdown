@@ -1,0 +1,151 @@
+---
+title: 設定
+description: CLI からヘッドレスで syncdown を設定します。
+---
+
+# 設定
+
+このページは、TUI を使わずにコマンドラインから `syncdown` を設定したい場合の出発点です。
+
+## ヘッドレス クイックスタート
+
+最小のヘッドレスフローは次のとおりです。
+
+1. 出力ディレクトリを設定する。
+2. コネクタを有効化して設定する。
+3. 必要なシークレット値を保存する。
+4. 同期を実行する。
+
+Notion トークン認証の例:
+
+```sh
+syncdown config set outputDir /path/to/output
+syncdown config set notion.enabled true
+syncdown config set notion.authMethod token
+printf '%s' "$NOTION_TOKEN" | syncdown config set notion.token --stdin
+syncdown run
+```
+
+Gmail、Google Calendar、または Notion OAuth を使う場合は、以下のコネクタ別シークレットキーを使用してください。
+
+## 設定モデル
+
+永続化される設定には次が含まれます。
+
+- `outputDir`
+- OAuth アプリ定義
+- connection 定義
+- 各コネクタの integration 定義
+
+通常は TUI または `syncdown config` を通して操作します。
+
+## よく使うヘッドレス設定コマンド
+
+値を設定する:
+
+```sh
+syncdown config set outputDir /path/to/output
+syncdown config set notion.enabled true
+syncdown config set notion.interval 1h
+syncdown config set notion.authMethod oauth
+
+syncdown config set gmail.enabled true
+syncdown config set gmail.interval 1h
+syncdown config set gmail.syncFilter primary
+syncdown config set gmail.fetchConcurrency 10
+
+syncdown config set googleCalendar.enabled true
+syncdown config set googleCalendar.interval 1h
+syncdown config set googleCalendar.selectedCalendarIds primary,work@example.com
+```
+
+標準入力からシークレット値を読む:
+
+```sh
+printf '%s' "$NOTION_TOKEN" | syncdown config set notion.token --stdin
+
+printf '%s' "$NOTION_CLIENT_ID" | syncdown config set notion.oauth.clientId --stdin
+printf '%s' "$NOTION_CLIENT_SECRET" | syncdown config set notion.oauth.clientSecret --stdin
+printf '%s' "$NOTION_REFRESH_TOKEN" | syncdown config set notion.oauth.refreshToken --stdin
+
+printf '%s' "$GOOGLE_CLIENT_ID" | syncdown config set google.clientId --stdin
+printf '%s' "$GOOGLE_CLIENT_SECRET" | syncdown config set google.clientSecret --stdin
+printf '%s' "$GOOGLE_REFRESH_TOKEN" | syncdown config set google.refreshToken --stdin
+```
+
+設定が完了したら同期を実行する:
+
+```sh
+syncdown run
+```
+
+コマンド単位のリファレンスは [CLI](/docs/cli) を参照してください。
+
+## 設定キー リファレンス
+
+### 通常の値を設定する
+
+通常の設定値には `syncdown config set <key> <value>` を使います。
+
+### シークレット値を設定する
+
+secret-backed な値には `syncdown config set <key> --stdin` を使い、標準入力から値を渡します。
+
+値を削除する:
+
+```sh
+syncdown config unset outputDir
+syncdown config unset notion.token
+syncdown config unset notion.oauth.clientId
+syncdown config unset notion.oauth.clientSecret
+syncdown config unset notion.oauth.refreshToken
+syncdown config unset google.clientId
+syncdown config unset google.clientSecret
+syncdown config unset google.refreshToken
+```
+
+## 対応している設定キー
+
+通常の設定値:
+
+- `outputDir`
+- `notion.enabled`
+- `notion.interval`
+- `notion.authMethod`
+- `gmail.enabled`
+- `gmail.interval`
+- `gmail.syncFilter`
+- `gmail.fetchConcurrency`
+- `googleCalendar.enabled`
+- `googleCalendar.interval`
+- `googleCalendar.selectedCalendarIds`
+
+secret-backed な値:
+
+- `notion.token`
+- `notion.oauth.clientId`
+- `notion.oauth.clientSecret`
+- `notion.oauth.refreshToken`
+- `google.clientId`
+- `google.clientSecret`
+- `google.refreshToken`
+
+## interval の挙動
+
+コネクタの interval は integration ごとに保存されます。
+
+- `notion.interval`
+- `gmail.interval`
+- `googleCalendar.interval`
+
+これらの interval は、TUI の同期ダッシュボードが **integration ごとの watch** モードを開始するときに使われます。
+
+CLI の watch コマンドは別の挙動です。
+
+```sh
+syncdown run --watch --interval 5m
+```
+
+`run --watch` は、すべての有効なコネクタに対して 1 つのグローバル interval を使います。`--interval` を省略した場合の既定値は `1h` です。
+
+watch モードと単発同期コマンドについては [同期](/docs/sync) を参照してください。

@@ -1,0 +1,29 @@
+---
+title: 连接器
+description: 说明 Notion、Gmail 和 Google Calendar 的专属设置与行为。
+---
+
+# 连接器
+
+`syncdown` 当前内置三个 connector：
+
+- [Notion](/docs/connectors/notion)
+- [Gmail](/docs/connectors/gmail)
+- [Google Calendar](/docs/connectors/google-calendar)
+
+它们都会通过同一个 renderer 和 filesystem sink 输出 Markdown，但在认证流程、发现模型和同步语义上各不相同。
+
+## 共享行为
+
+对每个 connector 来说：
+
+- 会在同步前验证凭证。
+- 会在同步开始前执行校验。
+- 会把输出写入按 connector/integration 范围划分的 Markdown 路径。
+- 会在后续运行中复用已有的增量同步状态。
+
+## 各 connector 指南
+
+- [Notion](/docs/connectors/notion) 介绍 token 与 OAuth 配置、页面发现以及数据源行为。
+- [Gmail](/docs/connectors/gmail) 介绍 Google OAuth、Primary 范围同步过滤器以及基于 history 的增量行为。
+- [Google Calendar](/docs/connectors/google-calendar) 介绍共享 Google OAuth、日历选择以及事件增量同步。

@@ -1,0 +1,29 @@
+---
+title: コネクタ
+description: Notion、Gmail、Google Calendar ごとの設定と挙動を説明します。
+---
+
+# コネクタ
+
+現在の `syncdown` には 3 つのコネクタがあります。
+
+- [Notion](/docs/connectors/notion)
+- [Gmail](/docs/connectors/gmail)
+- [Google Calendar](/docs/connectors/google-calendar)
+
+いずれも同じレンダラーとファイルシステム sink を通して Markdown を書き込みますが、認証フロー、検出モデル、同期セマンティクスは異なります。
+
+## 共通の挙動
+
+すべてのコネクタについて:
+
+- 同期前に認証情報を検証します。
+- 同期開始前にバリデーションを実行します。
+- コネクタ/integration 単位の Markdown パスに出力します。
+- 後続の実行では既存の増分同期状態を再利用します。
+
+## コネクタ別ガイド
+
+- [Notion](/docs/connectors/notion) ではトークンと OAuth の設定、ページ検出、データソース動作を扱います。
+- [Gmail](/docs/connectors/gmail) では Google OAuth、Primary 範囲の同期フィルタ、Gmail history ベースの増分挙動を扱います。
+- [Google Calendar](/docs/connectors/google-calendar) では共有 Google OAuth、カレンダー選択、イベントの増分同期を扱います。
