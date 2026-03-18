@@ -1058,6 +1058,25 @@ export class ConfigTuiApp {
 		selection: unknown,
 	): Promise<void> {
 		if (route.busy) {
+			if (selection === "cancelActiveRun" && !route.cancelPending) {
+				route.cancelPending = true;
+				setNotice(this.ui, {
+					kind: "success",
+					text: "Cancelling sync...",
+				});
+				this.refreshView();
+				void this.request.session.cancelActiveRun().catch((error) => {
+					route.cancelPending = false;
+					setNotice(this.ui, {
+						kind: "error",
+						text:
+							error instanceof Error
+								? error.message
+								: "Unknown sync action failure.",
+					});
+					this.refreshView();
+				});
+			}
 			return;
 		}
 
@@ -1089,6 +1108,7 @@ export class ConfigTuiApp {
 		}
 
 		route.busy = true;
+		route.cancelPending = false;
 		setNotice(this.ui, null);
 		this.refreshView();
 
@@ -1186,6 +1206,7 @@ export class ConfigTuiApp {
 			});
 		} finally {
 			route.busy = false;
+			route.cancelPending = false;
 			route.snapshot = this.request.session.getSnapshot();
 			this.refreshView();
 		}
@@ -1193,6 +1214,14 @@ export class ConfigTuiApp {
 
 	private setSyncRunNotice(successText: string): void {
 		const snapshot = this.request.session.getSnapshot();
+		if (snapshot.lastRunError === "Sync cancelled by user.") {
+			setNotice(this.ui, {
+				kind: "success",
+				text: "Sync cancelled.",
+			});
+			return;
+		}
+
 		if (snapshot.lastRunExitCode === EXIT_CODES.OK) {
 			setNotice(this.ui, {
 				kind: "success",
@@ -1926,7 +1955,8 @@ export class ConfigTuiApp {
 
 		if (
 			route.id === "syncDashboard" &&
-			(route.snapshot.watch.active ||
+			(route.busy ||
+				route.snapshot.watch.active ||
 				route.snapshot.integrations.some(
 					(integration) =>
 						integration.running || integration.queuedImmediateRun,
