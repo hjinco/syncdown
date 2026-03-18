@@ -24,45 +24,44 @@ need_cmd() {
 need_cmd curl
 need_cmd tar
 
+release_asset_exists() {
+  curl -fsSLI "$1" >/dev/null 2>&1
+}
+
 resolve_tag() {
+  asset_suffix="$1"
+
   if [ -n "${SYNCDOWN_VERSION:-}" ]; then
     normalize_tag "$SYNCDOWN_VERSION"
     return
   fi
 
-  tag="$(curl -fsSL -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/$REPO/releases?per_page=100" \
-    | tr -d '\n' \
-    | sed 's/},{"url":"/\
-{"url":"/g' \
-    | sed -n 's/.*"tag_name":[[:space:]]*"\(cli-v[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)".*"draft":[[:space:]]*false.*"prerelease":[[:space:]]*false.*/\1/p' \
+  candidate_tags="$(curl -fsSL -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/$REPO/tags?per_page=100" \
+    | tr '{' '\n' \
+    | sed -n 's/.*"name":[[:space:]]*"\(cli-v[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)".*/\1/p' \
     | awk '
       {
         split(substr($0, 6), parts, ".")
-        major = parts[1] + 0
-        minor = parts[2] + 0
-        patch = parts[3] + 0
-
-        if (best == "" ||
-            major > best_major ||
-            (major == best_major && minor > best_minor) ||
-            (major == best_major && minor == best_minor && patch > best_patch)) {
-          best = $0
-          best_major = major
-          best_minor = minor
-          best_patch = patch
-        }
+        printf "%09d.%09d.%09d %s\n", parts[1] + 0, parts[2] + 0, parts[3] + 0, $0
       }
+    ' \
+    | sort -r \
+    | awk '{print $2}')"
 
-      END {
-        print best
-      }
-    ')"
-  if [ -z "$tag" ]; then
-    printf 'error: unable to resolve latest CLI release tag\n' >&2
-    exit 1
-  fi
+  for tag in $candidate_tags; do
+    base_url="https://github.com/$REPO/releases/download/$tag"
+    archive_name="syncdown-${tag}-${asset_suffix}.tar.gz"
+    checksum_name="syncdown-${tag}-SHA256SUMS.txt"
 
-  printf '%s\n' "$tag"
+    if release_asset_exists "$base_url/$archive_name" &&
+      release_asset_exists "$base_url/$checksum_name"; then
+      printf '%s\n' "$tag"
+      return
+    fi
+  done
+
+  printf 'error: unable to resolve latest downloadable CLI release tag\n' >&2
+  exit 1
 }
 
 detect_asset_suffix() {
@@ -111,8 +110,8 @@ sha256_file() {
   exit 1
 }
 
-TAG="$(resolve_tag)"
 ASSET_SUFFIX="$(detect_asset_suffix)"
+TAG="$(resolve_tag "$ASSET_SUFFIX")"
 ARCHIVE_NAME="syncdown-${TAG}-${ASSET_SUFFIX}.tar.gz"
 CHECKSUM_NAME="syncdown-${TAG}-SHA256SUMS.txt"
 BASE_URL="https://github.com/$REPO/releases/download/$TAG"
