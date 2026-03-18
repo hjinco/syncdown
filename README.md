@@ -2,7 +2,7 @@
 
 Languages: **English** | [한국어](./docs/readme/README.ko.md) | [日本語](./docs/readme/README.ja.md) | [简体中文](./docs/readme/README.zh-CN.md)
 
-`syncdown` is an interactive CLI that syncs external service data into Markdown on your local filesystem.
+`syncdown` is a CLI that syncs external service data into Markdown on your local filesystem.
 
 Many AI workflows connect directly to services like Notion, Gmail, or Google Calendar through MCP or provider APIs. That works, but repeated remote retrieval is often slower, less predictable, and more token-expensive than working from a prepared local knowledge base.
 

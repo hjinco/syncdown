@@ -2,7 +2,7 @@
 
 언어: [English](../../README.md) | **한국어** | [日本語](./README.ja.md) | [简体中文](./README.zh-CN.md)
 
-`syncdown`은 외부 서비스 데이터를 로컬 파일 시스템의 Markdown으로 동기화하는 인터랙티브 CLI입니다.
+`syncdown`은 외부 서비스 데이터를 로컬 파일 시스템의 Markdown으로 동기화하는 CLI입니다.
 
 많은 AI 워크플로우는 MCP나 각 서비스 API를 통해 Notion, Gmail, Google Calendar 같은 도구에 직접 연결합니다. 이런 방식은 유연하지만, 같은 정보를 반복해서 원격 조회할수록 속도가 느려지고 응답 편차가 커지며 토큰도 더 많이 쓰기 쉽습니다.
 

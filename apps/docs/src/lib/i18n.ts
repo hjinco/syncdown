@@ -11,22 +11,22 @@ const appMetadata = {
 	en: {
 		title: "syncdown Docs",
 		description:
-			"User documentation for syncdown, an interactive CLI that syncs Notion, Gmail, and Google Calendar into local Markdown.",
+			"User documentation for syncdown, a CLI that syncs Notion, Gmail, and Google Calendar into local Markdown.",
 	},
 	ko: {
 		title: "syncdown 문서",
 		description:
-			"Notion, Gmail, Google Calendar를 로컬 Markdown으로 동기화하는 인터랙티브 CLI syncdown의 사용자 문서입니다.",
+			"Notion, Gmail, Google Calendar를 로컬 Markdown으로 동기화하는 CLI syncdown의 사용자 문서입니다.",
 	},
 	ja: {
 		title: "syncdown ドキュメント",
 		description:
-			"Notion、Gmail、Google Calendar をローカル Markdown に同期する対話型 CLI、syncdown のユーザードキュメントです。",
+			"Notion、Gmail、Google Calendar をローカル Markdown に同期する CLI、syncdown のユーザードキュメントです。",
 	},
 	"zh-CN": {
 		title: "syncdown 文档",
 		description:
-			"syncdown 用户文档。syncdown 是一个可将 Notion、Gmail 和 Google Calendar 同步到本地 Markdown 的交互式 CLI。",
+			"syncdown 用户文档。syncdown 是一个可将 Notion、Gmail 和 Google Calendar 同步到本地 Markdown 的 CLI。",
 	},
 } satisfies Record<AppLocale, { title: string; description: string }>;
 

@@ -2,7 +2,7 @@
 
 语言: [English](../../README.md) | [한국어](./README.ko.md) | [日本語](./README.ja.md) | **简体中文**
 
-`syncdown` 是一个交互式 CLI，用于将外部服务中的数据同步为本地文件系统中的 Markdown。
+`syncdown` 是一个 CLI，用于将外部服务中的数据同步为本地文件系统中的 Markdown。
 
 很多 AI 工作流会通过 MCP 或各服务自己的 API 直接连接 Notion、Gmail、Google Calendar 等工具。这种方式很灵活，但当你反复远程读取同一批信息时，通常会更慢、结果更不稳定，也更容易消耗更多 token。
 
