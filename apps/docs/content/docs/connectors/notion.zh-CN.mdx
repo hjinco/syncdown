@@ -117,7 +117,7 @@ printf '%s' "$NOTION_REFRESH_TOKEN" | syncdown config set notion.oauth.refreshTo
 
 - `title`、`source`、`created`、`updated` 等通用字段
 - 如果页面来自已同步数据库，则包含 `database`
-- 经过 frontmatter 友好化规范化后的 Notion top-level 属性键，例如 `status`、`due_date` 或 `담당자_이름`
+- 经过 frontmatter 友好化规范化后的 Notion top-level 属性键，例如 `status`、`due_date` 或 `负责人_姓名`
 
 不会输出嵌套的 `properties:` frontmatter。
 
