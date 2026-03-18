@@ -1,5 +1,11 @@
 # @syncdown/cli
 
+## 0.2.0
+
+### Minor Changes
+
+- 48abc08: Add Apple Notes sync support with CLI and TUI setup on macOS.
+
 ## 0.1.2
 
 ### Patch Changes
