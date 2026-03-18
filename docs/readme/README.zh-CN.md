@@ -61,6 +61,7 @@ syncdown
 
 - **Notion**：同步你已授权 Notion 连接访问的页面和数据库
 - **Gmail**：通过 Google OAuth 同步 `Primary` 收件箱
+- **Google Calendar**：通过共享 Google OAuth 账号同步所选日历
 
 ### 4. 执行第一次同步
 
@@ -69,6 +70,7 @@ syncdown
 - **Run all**
 - **Run Notion**
 - **Run Gmail**
+- **Run Google Calendar**
 
 你也可以通过 CLI 完成最小化的无界面配置：
 

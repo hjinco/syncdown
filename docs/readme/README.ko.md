@@ -60,6 +60,7 @@ TUI에서 **Output**을 열고 Markdown 출력 위치를 선택합니다.
 
 - **Notion**: 사용자가 Notion 연결에 접근을 허용한 페이지와 데이터베이스 동기화
 - **Gmail**: Google OAuth 기반 `Primary` 받은편지함 동기화
+- **Google Calendar**: 공유 Google OAuth 계정으로 선택한 캘린더 동기화
 
 ### 4. 첫 동기화 실행
 
@@ -68,6 +69,7 @@ TUI 홈 화면에서 **Sync**를 열고 다음 중 하나를 실행합니다.
 - **Run all**
 - **Run Notion**
 - **Run Gmail**
+- **Run Google Calendar**
 
 최소한의 헤드리스 설정은 CLI로도 가능합니다.
 

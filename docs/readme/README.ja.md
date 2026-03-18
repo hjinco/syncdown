@@ -61,6 +61,7 @@ TUI で **Output** を開き、Markdown の出力先を選択します。
 
 - **Notion**: 接続した Notion 連携にアクセスを許可したページとデータベースを同期
 - **Gmail**: Google OAuth を使って `Primary` 受信トレイを同期
+- **Google Calendar**: 共有 Google OAuth アカウント経由で選択したカレンダーを同期
 
 ### 4. 最初の同期を実行
 
@@ -69,6 +70,7 @@ TUI のホーム画面で **Sync** を開き、次のいずれかを実行しま
 - **Run all**
 - **Run Notion**
 - **Run Gmail**
+- **Run Google Calendar**
 
 最小限のヘッドレス設定は CLI からも行えます。
 
