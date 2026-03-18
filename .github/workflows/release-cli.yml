@@ -330,7 +330,7 @@ jobs:
           const changelog = fs.readFileSync(changelogPath, "utf8");
           const escapedVersion = cliVersion.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
           const sectionPattern = new RegExp(
-            `^##\\s+\\[?${escapedVersion}\\]?[^\\n]*\\n([\\s\\S]*?)(?=^##\\s+|\\Z)`,
+            `^##\\s+\\[?${escapedVersion}\\]?[^\\r\\n]*\\r?\\n([\\s\\S]*?)(?=^##\\s+|(?![\\s\\S]))`,
             "m",
           );
           const match = changelog.match(sectionPattern);
