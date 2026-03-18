@@ -1,0 +1,1 @@
+- After modifying any file, always run `lint:fix`.
