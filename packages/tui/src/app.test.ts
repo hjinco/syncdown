@@ -1165,6 +1165,224 @@ test("google calendar selection route loads calendars and saves selected ids", a
 	tui.destroy();
 });
 
+test("enabling Google Calendar starts Google login immediately when scopes need an upgrade", async () => {
+	const { renderer } = await createTestRenderer({ width: 100, height: 30 });
+	const paths = createPaths();
+	const secrets = createSecretsStore(
+		new Map([
+			[
+				getGoogleOAuthAppSecretNames(DEFAULT_GOOGLE_OAUTH_APP_ID).clientId,
+				"client-id",
+			],
+			[
+				getGoogleOAuthAppSecretNames(DEFAULT_GOOGLE_OAUTH_APP_ID).clientSecret,
+				"client-secret",
+			],
+			[
+				getGoogleConnectionSecretNames(DEFAULT_GOOGLE_CONNECTION_ID)
+					.refreshToken,
+				"old-refresh-token",
+			],
+		]),
+	);
+	const config = createConfig();
+	getDefaultIntegration(config, "gmail").enabled = true;
+	const draft = createDraftState(config, {
+		googleClientIdStored: true,
+		googleClientSecretStored: true,
+		googleRefreshTokenStored: true,
+	});
+	let googleSetupOpenCalls = 0;
+	const startGoogleSessionCalls: Array<{
+		clientId: string;
+		clientSecret: string;
+		scopes: string[];
+	}> = [];
+	const validateCalls: Array<{
+		refreshToken: string;
+		requiredScopes: readonly string[];
+	}> = [];
+	const tui = await ConfigTuiApp.create(
+		{
+			app: createApp(),
+			docsBaseUrl: DOCS_BASE_URL,
+			io: createIo(),
+			secrets: secrets.store,
+			session: createSessionStub().session,
+		},
+		paths,
+		draft,
+		renderer,
+		{
+			...createDefaultAuthService(),
+			async startGoogleSession(
+				clientId,
+				clientSecret,
+				scopes,
+			): Promise<GoogleAuthSession> {
+				startGoogleSessionCalls.push({ clientId, clientSecret, scopes });
+				return {
+					authorizationUrl: "https://accounts.example/auth",
+					browserOpened: true,
+					async complete() {
+						return { refreshToken: "new-refresh-token" };
+					},
+					async cancel() {},
+				};
+			},
+			async openGoogleOAuthSetup() {
+				googleSetupOpenCalls += 1;
+				return { opened: true };
+			},
+			async validateGoogleCredentials(_paths, credentials, requiredScopes) {
+				validateCalls.push({
+					refreshToken: credentials.refreshToken,
+					requiredScopes,
+				});
+				if (credentials.refreshToken === "old-refresh-token") {
+					throw new Error(
+						"Google account is missing required scopes: https://www.googleapis.com/auth/calendar.readonly",
+					);
+				}
+			},
+			async listGoogleCalendars(credentials) {
+				expect(credentials.refreshToken).toBe("new-refresh-token");
+				return [{ id: "primary", summary: "Primary", primary: true }];
+			},
+		},
+	);
+
+	(tui as any).ui.routes = [createConnectorDetailsRoute("google-calendar")];
+
+	await (tui as any).activateCurrentSelection();
+
+	expect(googleSetupOpenCalls).toBe(0);
+	expect(startGoogleSessionCalls).toEqual([
+		{
+			clientId: "client-id",
+			clientSecret: "client-secret",
+			scopes: [
+				"https://www.googleapis.com/auth/calendar.readonly",
+				"https://www.googleapis.com/auth/gmail.readonly",
+			],
+		},
+	]);
+	expect(validateCalls).toEqual([
+		{
+			refreshToken: "old-refresh-token",
+			requiredScopes: [
+				"https://www.googleapis.com/auth/calendar.readonly",
+				"https://www.googleapis.com/auth/gmail.readonly",
+			],
+		},
+		{
+			refreshToken: "new-refresh-token",
+			requiredScopes: [
+				"https://www.googleapis.com/auth/calendar.readonly",
+				"https://www.googleapis.com/auth/gmail.readonly",
+			],
+		},
+	]);
+	expect((tui as any).ui.routes.at(-1).id).toBe("googleCalendarSelection");
+	expect((tui as any).ui.routes.at(-1).calendars).toEqual([
+		{ id: "primary", summary: "Primary", primary: true },
+	]);
+	expect(
+		await secrets.store.getSecret(
+			getGoogleConnectionSecretNames(DEFAULT_GOOGLE_CONNECTION_ID).refreshToken,
+			paths,
+		),
+	).toBe("new-refresh-token");
+
+	tui.destroy();
+});
+
+test("enabling Gmail reconnects immediately when Google setup is incomplete", async () => {
+	const { renderer } = await createTestRenderer({ width: 100, height: 30 });
+	const paths = createPaths();
+	const secrets = createSecretsStore(
+		new Map([
+			[
+				getGoogleOAuthAppSecretNames(DEFAULT_GOOGLE_OAUTH_APP_ID).clientId,
+				"client-id",
+			],
+			[
+				getGoogleOAuthAppSecretNames(DEFAULT_GOOGLE_OAUTH_APP_ID).clientSecret,
+				"client-secret",
+			],
+		]),
+	);
+	const draft = createDraftState(createConfig(), {
+		googleClientIdStored: true,
+		googleClientSecretStored: true,
+		googleRefreshTokenStored: false,
+	});
+	const startGoogleSessionCalls: Array<{
+		clientId: string;
+		clientSecret: string;
+		scopes: string[];
+	}> = [];
+	let validateCalls = 0;
+	const tui = await ConfigTuiApp.create(
+		{
+			app: createApp(),
+			docsBaseUrl: DOCS_BASE_URL,
+			io: createIo(),
+			secrets: secrets.store,
+			session: createSessionStub().session,
+		},
+		paths,
+		draft,
+		renderer,
+		{
+			...createDefaultAuthService(),
+			async startGoogleSession(
+				clientId,
+				clientSecret,
+				scopes,
+			): Promise<GoogleAuthSession> {
+				startGoogleSessionCalls.push({ clientId, clientSecret, scopes });
+				return {
+					authorizationUrl: "https://accounts.example/auth",
+					browserOpened: true,
+					async complete() {
+						return { refreshToken: "new-refresh-token" };
+					},
+					async cancel() {},
+				};
+			},
+			async validateGoogleCredentials() {
+				validateCalls += 1;
+			},
+		},
+	);
+
+	(tui as any).ui.routes = [createConnectorDetailsRoute("gmail")];
+
+	await (tui as any).activateCurrentSelection();
+
+	expect(validateCalls).toBe(1);
+	expect(startGoogleSessionCalls).toEqual([
+		{
+			clientId: "client-id",
+			clientSecret: "client-secret",
+			scopes: ["https://www.googleapis.com/auth/gmail.readonly"],
+		},
+	]);
+	expect(
+		getDefaultIntegration((tui as any).draft.config, "gmail").enabled,
+	).toBe(true);
+	expect(
+		await secrets.store.getSecret(
+			getGoogleConnectionSecretNames(DEFAULT_GOOGLE_CONNECTION_ID).refreshToken,
+			paths,
+		),
+	).toBe("new-refresh-token");
+	expect((tui as any).ui.notice?.text).toBe("Gmail enabled.");
+
+	tui.destroy();
+});
+
 test("disconnect confirmation persists immediately", async () => {
 	const { renderer } = await createTestRenderer({ width: 100, height: 30 });
 	const paths = createPaths();

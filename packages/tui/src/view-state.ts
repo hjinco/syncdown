@@ -1151,7 +1151,7 @@ export function getRouteOptions(
 												? "Enable Gmail"
 												: "Enable Google Calendar",
 										description:
-											"Use the stored Google account without reauthenticating",
+											"Enable with the stored Google account and verify permissions if needed",
 										value: "enable",
 									} satisfies UiSelectOption,
 									{
