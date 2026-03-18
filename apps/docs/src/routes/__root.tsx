@@ -8,6 +8,7 @@ import {
 import { RootProvider } from "fumadocs-ui/provider/tanstack";
 import {
 	docsI18nUI,
+	getAppMetadata,
 	isLocale,
 	localizePath,
 	useCurrentLocale,
@@ -24,14 +25,6 @@ export const Route = createRootRoute({
 				name: "viewport",
 				content: "width=device-width, initial-scale=1",
 			},
-			{
-				title: "syncdown Docs",
-			},
-			{
-				name: "description",
-				content:
-					"User documentation for syncdown, an interactive CLI that syncs Notion and Gmail into local Markdown.",
-			},
 		],
 		links: [{ rel: "stylesheet", href: appCss }],
 	}),
@@ -42,11 +35,14 @@ function RootComponent() {
 	const locale = useCurrentLocale();
 	const router = useRouter();
 	const i18n = docsI18nUI.provider(locale);
+	const { title, description } = getAppMetadata(locale);
 
 	return (
 		<html suppressHydrationWarning lang={locale}>
 			<head>
 				<HeadContent />
+				<title>{title}</title>
+				<meta content={description} name="description" />
 			</head>
 			<body className="flex flex-col min-h-screen">
 				<RootProvider

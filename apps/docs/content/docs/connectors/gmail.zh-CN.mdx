@@ -1,0 +1,134 @@
+---
+title: Gmail
+description: 通过 Google OAuth 连接 Gmail，并了解当前同步边界。
+---
+
+# Gmail
+
+## 认证模型
+
+Gmail connector 使用 Google OAuth，并要求 Gmail readonly scope：
+
+```text
+https://www.googleapis.com/auth/gmail.readonly
+```
+
+## 这里的 OAuth 是什么意思
+
+OAuth 让你在浏览器里批准 Gmail 访问，而不是把 Google 账号密码交给 `syncdown`。
+
+对于 Gmail，这意味着：
+
+- 你需要创建或复用一个 Google **Desktop app** OAuth client
+- 把 client ID 和 client secret 粘贴到 `syncdown`
+- Google 会为 `syncdown` 所需的 Gmail scope 显示浏览器授权界面
+- `syncdown` 会完成连接，这样后续同步时无需每次重新连接
+
+在后续运行中，`syncdown` 会自动继续使用这条已批准的连接。
+
+## TUI 设置
+
+打开 **Connectors → Gmail**，然后选择 **Connect Google account**。
+
+TUI 会要求输入：
+
+- Google Desktop app client ID
+- Google Desktop app client secret
+
+之后它会打开浏览器、等待本地 callback、校验已授予的 scope，并完成连接。
+
+### 开始前准备
+
+先在 Google Cloud Console 中准备一个 Google **Desktop app** OAuth client。
+
+直接打开设置页：[Google Auth platform clients](https://console.cloud.google.com/auth/clients)。
+
+你需要：
+
+- Desktop app client ID
+- Desktop app client secret
+
+TUI 会打开 Google OAuth client 配置页，方便你创建新的 client 或复制现有值。
+
+### 连接过程中会发生什么
+
+1. 粘贴 Google client ID。
+2. 粘贴 Google client secret。
+3. `syncdown` 在浏览器中打开 Google 授权界面。
+4. 批准所请求的 Gmail readonly scope。
+5. Google 重定向回 `syncdown` 启动的本地 callback 服务器。
+6. `syncdown` 校验授予的 scope 是否足够，并完成连接。
+
+### Gmail scope 说明
+
+- Gmail 同步需要 `https://www.googleapis.com/auth/gmail.readonly`。
+- 如果之后再启用 Google Calendar，`syncdown` 会在同一个 Google 账号上请求 Gmail 与 Calendar scope 的并集。
+- 如果已连接的 Google 账号缺少新需要的 scope，请重新连接并批准更新后的授权界面。
+
+## 无界面配置
+
+```sh
+syncdown config set gmail.enabled true
+syncdown config set gmail.interval 1h
+syncdown config set gmail.syncFilter primary
+syncdown config set gmail.fetchConcurrency 10
+
+printf '%s' "$GOOGLE_CLIENT_ID" | syncdown config set google.clientId --stdin
+printf '%s' "$GOOGLE_CLIENT_SECRET" | syncdown config set google.clientSecret --stdin
+printf '%s' "$GOOGLE_REFRESH_TOKEN" | syncdown config set google.refreshToken --stdin
+```
+
+## 会同步什么
+
+当前 Gmail connector 会：
+
+- 默认同步 `Primary` 收件箱消息
+- 可通过 `gmail.syncFilter=primary-important` 要求同时满足 `Primary` 和 `Important`
+- 为每条消息写入一个 Markdown 文件
+- 保存消息元数据和正文文本
+- 在输出目录中按账号邮箱、年份和月份组织消息
+
+## 增量行为
+
+首次运行时，该 connector 会从当前 Gmail 过滤器流式获取消息 ID，并扫描所有匹配的收件箱消息。
+
+后续运行中，它会使用 Gmail history ID 仅获取发生变化的消息。
+
+如果保存的 Gmail history cursor 已过期，或该 cursor 来自旧的过滤器格式，`syncdown` 会退回到一次完整的范围重扫。
+
+如果某条消息消失，或不再匹配当前 Gmail 过滤器，对应的本地 Markdown 文件会被删除。
+
+## 调优选项
+
+### `gmail.fetchConcurrency`
+
+控制并行抓取的消息数量。
+
+默认值：
+
+```text
+10
+```
+
+### `gmail.syncFilter`
+
+控制哪些收件箱消息符合 Gmail 同步条件。
+
+支持值：
+
+```text
+primary
+primary-important
+```
+
+行为：
+
+- `primary`: 仅同步 `INBOX ∩ CATEGORY_PERSONAL`
+- `primary-important`: 仅同步 `INBOX ∩ CATEGORY_PERSONAL ∩ IMPORTANT`
+
+## 当前限制
+
+- 仅支持 `Primary` 范围收件箱同步
+- 不导出附件
+- 不导出内联资源
+- 无人值守运行需要有效的 Google refresh token

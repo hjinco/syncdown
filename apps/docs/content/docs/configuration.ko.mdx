@@ -1,0 +1,151 @@
+---
+title: 설정
+description: CLI에서 헤드리스 방식으로 syncdown을 설정합니다.
+---
+
+# 설정
+
+이 페이지는 TUI 없이 명령줄에서 `syncdown`을 설정하려는 경우의 시작점입니다.
+
+## 헤드리스 빠른 시작
+
+가장 작은 헤드리스 흐름은 다음과 같습니다.
+
+1. 출력 디렉터리를 설정합니다.
+2. 커넥터를 활성화하고 설정합니다.
+3. 필요한 비밀 값을 저장합니다.
+4. 동기화를 실행합니다.
+
+Notion 토큰 인증 예시:
+
+```sh
+syncdown config set outputDir /path/to/output
+syncdown config set notion.enabled true
+syncdown config set notion.authMethod token
+printf '%s' "$NOTION_TOKEN" | syncdown config set notion.token --stdin
+syncdown run
+```
+
+Gmail, Google Calendar 또는 Notion OAuth를 사용할 때는 아래 커넥터별 secret key를 사용하세요.
+
+## 설정 모델
+
+영속 설정에는 다음이 포함됩니다.
+
+- `outputDir`
+- OAuth 앱 정의
+- 연결 정의
+- 각 커넥터의 integration 정의
+
+보통은 TUI나 `syncdown config`를 통해 이 값을 다룹니다.
+
+## 자주 쓰는 헤드리스 설정 명령
+
+값 설정:
+
+```sh
+syncdown config set outputDir /path/to/output
+syncdown config set notion.enabled true
+syncdown config set notion.interval 1h
+syncdown config set notion.authMethod oauth
+
+syncdown config set gmail.enabled true
+syncdown config set gmail.interval 1h
+syncdown config set gmail.syncFilter primary
+syncdown config set gmail.fetchConcurrency 10
+
+syncdown config set googleCalendar.enabled true
+syncdown config set googleCalendar.interval 1h
+syncdown config set googleCalendar.selectedCalendarIds primary,work@example.com
+```
+
+표준 입력에서 secret 값 읽기:
+
+```sh
+printf '%s' "$NOTION_TOKEN" | syncdown config set notion.token --stdin
+
+printf '%s' "$NOTION_CLIENT_ID" | syncdown config set notion.oauth.clientId --stdin
+printf '%s' "$NOTION_CLIENT_SECRET" | syncdown config set notion.oauth.clientSecret --stdin
+printf '%s' "$NOTION_REFRESH_TOKEN" | syncdown config set notion.oauth.refreshToken --stdin
+
+printf '%s' "$GOOGLE_CLIENT_ID" | syncdown config set google.clientId --stdin
+printf '%s' "$GOOGLE_CLIENT_SECRET" | syncdown config set google.clientSecret --stdin
+printf '%s' "$GOOGLE_REFRESH_TOKEN" | syncdown config set google.refreshToken --stdin
+```
+
+설정이 끝나면 동기화 실행:
+
+```sh
+syncdown run
+```
+
+명령별 레퍼런스는 [CLI](/docs/cli)를 참고하세요.
+
+## 설정 키 레퍼런스
+
+### 일반 값 설정
+
+일반 설정 값은 `syncdown config set <key> <value>`를 사용합니다.
+
+### 비밀 값 설정
+
+secret-backed 값은 `syncdown config set <key> --stdin`을 사용하고 표준 입력으로 값을 전달합니다.
+
+값 해제:
+
+```sh
+syncdown config unset outputDir
+syncdown config unset notion.token
+syncdown config unset notion.oauth.clientId
+syncdown config unset notion.oauth.clientSecret
+syncdown config unset notion.oauth.refreshToken
+syncdown config unset google.clientId
+syncdown config unset google.clientSecret
+syncdown config unset google.refreshToken
+```
+
+## 지원되는 설정 키
+
+일반 설정 값:
+
+- `outputDir`
+- `notion.enabled`
+- `notion.interval`
+- `notion.authMethod`
+- `gmail.enabled`
+- `gmail.interval`
+- `gmail.syncFilter`
+- `gmail.fetchConcurrency`
+- `googleCalendar.enabled`
+- `googleCalendar.interval`
+- `googleCalendar.selectedCalendarIds`
+
+secret-backed 값:
+
+- `notion.token`
+- `notion.oauth.clientId`
+- `notion.oauth.clientSecret`
+- `notion.oauth.refreshToken`
+- `google.clientId`
+- `google.clientSecret`
+- `google.refreshToken`
+
+## interval 동작
+
+커넥터 interval은 integration별로 저장됩니다.
+
+- `notion.interval`
+- `gmail.interval`
+- `googleCalendar.interval`
+
+이 interval은 TUI 동기화 대시보드에서 **integration별 watch** 모드를 시작할 때 사용됩니다.
+
+CLI watch 명령은 다르게 동작합니다.
+
+```sh
+syncdown run --watch --interval 5m
+```
+
+`run --watch`는 모든 활성 커넥터에 대해 하나의 전역 interval을 사용합니다. `--interval`을 생략하면 기본값은 `1h`입니다.
+
+watch 모드와 단발성 동기화 명령은 [동기화](/docs/sync)를 참고하세요.

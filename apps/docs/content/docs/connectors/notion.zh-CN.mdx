@@ -1,0 +1,136 @@
+---
+title: Notion
+description: 设置 Notion token 或 OAuth 访问，并了解该 connector 会同步什么。
+---
+
+# Notion
+
+## 支持的认证方式
+
+Notion connector 支持两种认证方式：
+
+- **Token**
+- **OAuth**
+
+在持久化配置中，通过 `notion.authMethod` 选择当前生效的方式。
+
+## 这里的 OAuth 是什么意思
+
+OAuth 让你可以在浏览器里批准 `syncdown` 访问，而不是把 Notion 账号密码粘贴到应用中。
+
+对于 Notion connector，这意味着：
+
+- 你需要创建或复用一个 Notion **public integration**
+- 把该 integration 的 client ID 和 client secret 粘贴到 `syncdown`
+- Notion 会为要连接的 workspace 或 account 显示浏览器授权界面
+- `syncdown` 会把 callback code 交换成 token，这样后续同步时就不必每次都重新连接
+
+在后续运行中，`syncdown` 可以继续使用已批准的连接，而无需你反复重新连接。
+
+如果你不想使用基于浏览器的 OAuth 流程，也可以继续使用基于 token 的配置方式。
+
+## TUI 设置
+
+打开 **Connectors → Notion**。
+
+### Token 流程
+
+选择 **Connect with Token**。
+
+TUI 会打开 Notion integrations 页面：
+
+[Notion integrations](https://www.notion.so/profile/integrations)
+
+然后它会要求输入 token，并在保存前完成校验。
+
+### OAuth 流程
+
+选择 **Connect with OAuth**。
+
+TUI 会要求你输入：
+
+- Notion public integration client ID
+- Notion public integration client secret
+
+随后它会打开浏览器、等待本地 callback、校验返回的 access token，并完成连接流程。
+
+### 开始前准备
+
+先在 Notion integrations 页面准备一个 Notion **public integration**。
+
+直接打开设置页：[Notion integrations](https://www.notion.so/profile/integrations)。
+
+你需要：
+
+- public integration client ID
+- public integration client secret
+
+`syncdown` 会从 TUI 打开 integrations 页面，方便你创建新的 integration 或复制已有 integration 的值。
+
+### 连接过程中会发生什么
+
+1. 粘贴 client ID。
+2. 粘贴 client secret。
+3. `syncdown` 在浏览器中打开 Notion 授权界面。
+4. 批准目标 workspace 或 account 的访问权限。
+5. Notion 重定向回 `syncdown` 启动的本地 callback 服务器。
+6. `syncdown` 校验返回的 access token 并完成连接。
+
+### Token 与 OAuth 的区别
+
+- 如果你已经手动管理 Notion integration token，并希望使用最简单的非浏览器配置，就选 **Token**。
+- 如果你更偏好浏览器授权流程，并希望后续同步持续复用这条连接，就选 **OAuth**。
+
+## 无界面配置
+
+Token 流程：
+
+```sh
+syncdown config set notion.enabled true
+syncdown config set notion.authMethod token
+printf '%s' "$NOTION_TOKEN" | syncdown config set notion.token --stdin
+```
+
+OAuth 流程：
+
+```sh
+syncdown config set notion.enabled true
+syncdown config set notion.authMethod oauth
+printf '%s' "$NOTION_CLIENT_ID" | syncdown config set notion.oauth.clientId --stdin
+printf '%s' "$NOTION_CLIENT_SECRET" | syncdown config set notion.oauth.clientSecret --stdin
+printf '%s' "$NOTION_REFRESH_TOKEN" | syncdown config set notion.oauth.refreshToken --stdin
+```
+
+## 会同步什么
+
+该 connector 会：
+
+- 校验所选的 token 或 OAuth 凭证
+- 发现所选 integration 或 OAuth 已连接 account 可访问的 Notion 页面
+- 发现所选 integration 或 OAuth 已连接 account 可访问的 Notion 数据库
+- 查询每个已发现数据库中的页面
+- 获取每个候选页面的元数据和 Markdown
+
+如果可以拿到数据库名称，来自已发现数据库的页面会写入按数据库划分的目录。
+
+渲染后的 Notion Markdown 会包含如下 YAML frontmatter：
+
+- `title`、`source`、`created`、`updated` 等通用字段
+- 如果页面来自已同步数据库，则包含 `database`
+- 经过 frontmatter 友好化规范化后的 Notion top-level 属性键，例如 `status`、`due_date` 或 `负责人_姓名`
+
+不会输出嵌套的 `properties:` frontmatter。
+
+## 增量行为
+
+connector 会在运行之间保存 cursor。
+
+对于已同步数据库，它会使用该 cursor 请求增量页面候选。对于所选 integration 或 OAuth account 可访问的顶层页面，则每次运行都会重新发现。
+
+它还会把快照保存在 SQLite 中，以便在源内容和渲染版本没有变化时避免不必要的重写。
+
+## 当前注意事项
+
+- 只有所选 integration 或 OAuth account 有访问权限的内容才可见。
+- 当前实现面向可访问的页面和数据库，而不是所有可能的 Notion 对象类型。
+- 对于大型或特别复杂的 Notion 内容，在将其用于正式导出之前，建议先在你的工作区内验证。

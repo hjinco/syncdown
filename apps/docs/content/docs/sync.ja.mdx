@@ -1,0 +1,95 @@
+---
+title: 同期
+description: 単発同期、watch モード、TUI の同期ダッシュボードを実行します。
+---
+
+# 同期
+
+## 1 回の同期を実行する
+
+CLI から有効なすべてのコネクタを 1 回実行します。
+
+```sh
+syncdown run
+```
+
+特定のコネクタまたは integration だけを対象にすることもできます。
+
+```sh
+syncdown run --connector notion
+syncdown run --connector google-calendar
+syncdown run --integration notion-default
+```
+
+選択した対象に対してフル再同期を強制する場合:
+
+```sh
+syncdown run --integration notion-default --reset
+```
+
+`--reset` は単発実行でのみ利用できます。新しい同期の前に、選択した integration の状態を消去し、レンダリング済み Markdown ファイルを削除します。
+
+## グローバル CLI watch モード
+
+プロセスを終了させず、1 つの共有 interval で有効なすべてのコネクタを再実行します。
+
+```sh
+syncdown run --watch
+syncdown run --watch --interval 5m
+```
+
+対応している watch interval:
+
+```text
+5m, 15m, 1h, 6h, 24h
+```
+
+interval を指定しない場合の既定値は `1h` です。
+
+## TUI 同期ダッシュボード
+
+TUI は専用の同期ダッシュボードで次の操作を提供します。
+
+- 有効なすべてのコネクタを即時実行
+- 全体、Notion、Gmail、Google Calendar のフル再同期を実行
+- Notion を即時実行
+- Gmail を即時実行
+- Google Calendar を即時実行
+- watch モードを開始
+- watch モードを停止
+- 画面上のダッシュボードログを消去
+
+`syncdown run --watch` と異なり、TUI ダッシュボードは **integration ごとの watch** モードを開始します。つまり、有効な各コネクタがそれぞれ設定済み interval を使います。
+
+## 実行時の挙動
+
+同期セッション中、`syncdown` は次を追跡します。
+
+- 現在の状態: `idle`, `running`, `watching`
+- integration ごとの状態とキュー済み実行
+- 最近のログ行
+- 最後の実行対象、タイムスタンプ、終了コード、最後のエラー
+
+この状態が TUI ダッシュボードと watch ループを支えています。
+
+## 終了コード
+
+CLI は明示的な実行終了コードを提供します。
+
+| コード | 意味 |
+| --- | --- |
+| `0` | 成功 |
+| `2` | 設定エラー |
+| `3` | 別の同期がすでに実行中 |
+| `4` | コネクタの検証に失敗 |
+| `5` | コネクタの同期に失敗 |
+
+## 関連コマンド
+
+```sh
+syncdown status
+syncdown connectors
+syncdown doctor
+```
+
+`status` は簡易サマリー、`connectors` はコネクタ一覧、`doctor` はパスと状態の診断に使います。

@@ -1,0 +1,153 @@
+---
+title: CLI
+description: 用于在 CLI 中操作 syncdown 的交互式入口和命令参考。
+---
+
+# CLI
+
+本页是 `syncdown` 的命令参考。
+
+如果你想按步骤进行无界面配置，请先看 [配置](/docs/configuration)。如果你想走交互式配置路径，请看 [开始使用](/docs/getting-started)。
+
+## 顶层命令
+
+```text
+syncdown
+syncdown status
+syncdown config set <key> <value>
+syncdown config set <key> --stdin
+syncdown config unset <key>
+syncdown run
+syncdown run --connector <notion|gmail|google-calendar>
+syncdown run --integration <integration-id>
+syncdown run --reset [--connector <notion|gmail|google-calendar>|--integration <integration-id>]
+syncdown run --watch [--interval <5m|15m|1h|6h|24h>]
+syncdown connectors
+syncdown doctor
+syncdown update
+syncdown update --check
+```
+
+## `syncdown`
+
+在交互式终端中，`syncdown` 会启动 TUI。
+
+没有 TTY 时，它会输出帮助并以配置错误退出。
+
+这是交互式入口，不是无界面配置指南。
+
+## `syncdown status`
+
+它会显示以下内容的高层摘要：
+
+- 输出目录
+- Google 凭证状态
+- Notion 状态、认证方式、interval、凭证和最近一次同步
+- Gmail 状态、interval、收件箱过滤器、初始同步限制、并发度、凭证和最近一次同步
+- Google Calendar 状态、interval、已选日历数量、凭证和最近一次同步
+
+它还会根据配置是否完成，输出下一步建议。
+
+## `syncdown config set`
+
+用于持久化非 secret 配置值，或通过 `--stdin` 设置 secret 值。
+
+示例：
+
+```sh
+syncdown config set outputDir /path/to/output
+syncdown config set notion.enabled true
+syncdown config set notion.authMethod token
+syncdown config set gmail.syncFilter primary
+syncdown config set gmail.fetchConcurrency 20
+syncdown config set googleCalendar.selectedCalendarIds primary,work@example.com
+```
+
+secret 值示例：
+
+```sh
+printf '%s' "$TOKEN" | syncdown config set notion.token --stdin
+printf '%s' "$GOOGLE_REFRESH_TOKEN" | syncdown config set google.refreshToken --stdin
+```
+
+## `syncdown config unset`
+
+示例：
+
+```sh
+syncdown config unset outputDir
+syncdown config unset notion.token
+syncdown config unset google.clientSecret
+```
+
+## `syncdown run`
+
+运行所有已启用的 connector 一次：
+
+```sh
+syncdown run
+```
+
+只运行某个 connector 或某个 integration 一次：
+
+```sh
+syncdown run --connector notion
+syncdown run --connector google-calendar
+syncdown run --integration notion-default
+```
+
+在重新运行 integration 之前先重置：
+
+```sh
+syncdown run --integration notion-default --reset
+```
+
+`--reset` 会在同步开始前清除所选 integration 的 cursor、最近一次同步时间、已跟踪记录、已保存快照和渲染文件。
+
+启动全局 watch 模式：
+
+```sh
+syncdown run --watch
+syncdown run --watch --interval 15m
+```
+
+## `syncdown connectors`
+
+列出每个 integration 的：
+
+- connector ID
+- enabled 标记
+- interval
+- 凭证完整性
+- 最近一次同步时间
+
+## `syncdown doctor`
+
+输出如下运行诊断和校验细节：
+
+- 每个 integration 的校验结果
+- 输出目录是否可写
+- 本地状态与安装健康度诊断
+
+## `syncdown update`
+
+检查是否有更新版本：
+
+```sh
+syncdown update --check
+```
+
+下载并安装最新发布的 release 二进制：
+
+```sh
+syncdown update
+```
+
+self-update 仅适用于已发布的 release 二进制。如果 CLI 是通过 Bun 从源码运行的，`syncdown update` 会报告 self-update 不可用。
+
+## 帮助
+
+```sh
+syncdown --help
+syncdown -h
+```

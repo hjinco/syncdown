@@ -1,0 +1,136 @@
+---
+title: Notion
+description: Notion のトークンまたは OAuth アクセスを設定し、コネクタが何を同期するかを理解します。
+---
+
+# Notion
+
+## 対応している認証方式
+
+Notion コネクタは 2 つの認証方式をサポートします。
+
+- **Token**
+- **OAuth**
+
+永続化設定では `notion.authMethod` で有効な方式を選択します。
+
+## ここでの OAuth の意味
+
+OAuth を使うと、`syncdown` に Notion アカウントのパスワードを貼り付ける代わりに、ブラウザでアクセスを承認できます。
+
+Notion コネクタでは次を意味します。
+
+- Notion の **public integration** を作成するか既存のものを再利用します。
+- その integration の client ID と client secret を `syncdown` に貼り付けます。
+- 接続する workspace または account 向けのブラウザ同意画面が Notion によって表示されます。
+- 後続同期で毎回再接続しなくて済むように、`syncdown` が callback code を token に交換します。
+
+後続の同期では、承認済みの接続を再利用できるため毎回再接続する必要はありません。
+
+ブラウザベースの OAuth フローを使いたくない場合は、トークンベースの設定をそのまま使えます。
+
+## TUI セットアップ
+
+**Connectors → Notion** を開きます。
+
+### Token フロー
+
+**Connect with Token** を選びます。
+
+TUI は Notion integrations ページを開きます。
+
+[Notion integrations](https://www.notion.so/profile/integrations)
+
+その後トークンの入力を求め、保存前に検証します。
+
+### OAuth フロー
+
+**Connect with OAuth** を選びます。
+
+TUI は次を求めます。
+
+- Notion public integration client ID
+- Notion public integration client secret
+
+その後ブラウザを開き、ローカル callback を待ち、返された access token を検証して接続を完了します。
+
+### 始める前に
+
+Notion integrations ページで Notion の **public integration** を準備してください。
+
+直接開く: [Notion integrations](https://www.notion.so/profile/integrations)。
+
+必要なもの:
+
+- public integration client ID
+- public integration client secret
+
+`syncdown` は TUI から integrations ページを開き、新しい integration を作成したり既存の値をコピーしたりできるようにします。
+
+### 接続中に起こること
+
+1. client ID を貼り付ける。
+2. client secret を貼り付ける。
+3. `syncdown` がブラウザで Notion の同意画面を開く。
+4. 対象の workspace または account へのアクセスを承認する。
+5. Notion が `syncdown` のローカル callback サーバーへリダイレクトする。
+6. `syncdown` が返された access token を検証して接続を完了する。
+
+### Token と OAuth の違い
+
+- すでに Notion integration token を手動で管理しており、最も簡単な非ブラウザ設定を望むなら **Token** を使ってください。
+- ブラウザで承認するフローを好み、後続同期でも接続を維持したいなら **OAuth** を使ってください。
+
+## ヘッドレス設定
+
+Token フロー:
+
+```sh
+syncdown config set notion.enabled true
+syncdown config set notion.authMethod token
+printf '%s' "$NOTION_TOKEN" | syncdown config set notion.token --stdin
+```
+
+OAuth フロー:
+
+```sh
+syncdown config set notion.enabled true
+syncdown config set notion.authMethod oauth
+printf '%s' "$NOTION_CLIENT_ID" | syncdown config set notion.oauth.clientId --stdin
+printf '%s' "$NOTION_CLIENT_SECRET" | syncdown config set notion.oauth.clientSecret --stdin
+printf '%s' "$NOTION_REFRESH_TOKEN" | syncdown config set notion.oauth.refreshToken --stdin
+```
+
+## 何が同期されるか
+
+このコネクタは次を行います。
+
+- 選択した token または OAuth 認証情報を検証する
+- 選択した integration または OAuth 接続済み account がアクセスできる Notion ページを検出する
+- 選択した integration または OAuth 接続済み account がアクセスできる Notion データベースを検出する
+- 検出した各データベース内のページを問い合わせる
+- 各候補ページのメタデータと Markdown を取得する
+
+データベース名が利用できる場合、検出されたデータベース内のページはデータベース別ディレクトリに書き込まれます。
+
+レンダリングされた Notion Markdown には次の YAML frontmatter が含まれます。
+
+- `title`, `source`, `created`, `updated` などの共通フィールド
+- 同期済みデータベース由来のページであれば `database`
+- `status`, `due_date`, `担当者_名前` のような frontmatter 向けに正規化された Notion の top-level プロパティキー
+
+ネストされた `properties:` frontmatter は出力されません。
+
+## 増分挙動
+
+コネクタは実行間で cursor を保持します。
+
+同期済みデータベースについては、その cursor を使って増分ページ候補を取得します。一方、選択した integration または OAuth account がアクセスできるトップレベルページは毎回再検出されます。
+
+また、ソースまたはレンダーバージョンが変わっていない場合に不要な再書き込みを避けるため、SQLite にスナップショットを保存します。
+
+## 現在の制約
+
+- 選択した integration または OAuth account がアクセスできるコンテンツのみが対象です。
+- 現在の実装はアクセス可能なページとデータベースを対象としており、あらゆる Notion オブジェクト型を網羅しているわけではありません。
+- 大規模または複雑な Notion コンテンツは、本番エクスポートに依存する前にワークスペースで検証することを推奨します。

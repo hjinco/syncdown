@@ -170,7 +170,6 @@ Connector-specific setup details, supported behavior, and current limits are doc
 For more detailed guides, see:
 
 - [Getting Started](./apps/docs/content/docs/getting-started.mdx)
-- [Installation](./apps/docs/content/docs/installation.mdx)
 - [Configuration](./apps/docs/content/docs/configuration.mdx)
 - [CLI reference](./apps/docs/content/docs/cli.mdx)
 

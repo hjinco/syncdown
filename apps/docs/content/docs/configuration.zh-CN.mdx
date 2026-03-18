@@ -1,0 +1,151 @@
+---
+title: 配置
+description: 从 CLI 以无界面方式设置 syncdown。
+---
+
+# 配置
+
+如果你想在不使用 TUI 的情况下从命令行设置 `syncdown`，这里就是起点。
+
+## 无界面快速开始
+
+最小化的无界面流程如下：
+
+1. 设置输出目录。
+2. 启用并配置一个 connector。
+3. 保存所需的 secret 值。
+4. 运行同步。
+
+使用 Notion token 认证的示例：
+
+```sh
+syncdown config set outputDir /path/to/output
+syncdown config set notion.enabled true
+syncdown config set notion.authMethod token
+printf '%s' "$NOTION_TOKEN" | syncdown config set notion.token --stdin
+syncdown run
+```
+
+对于 Gmail、Google Calendar 或 Notion OAuth，请使用下面列出的各 connector secret key。
+
+## 配置模型
+
+持久化配置包含：
+
+- `outputDir`
+- OAuth 应用定义
+- connection 定义
+- 每个 connector 的 integration 定义
+
+通常你会通过 TUI 或 `syncdown config` 与这些配置交互。
+
+## 常用无界面配置命令
+
+设置值：
+
+```sh
+syncdown config set outputDir /path/to/output
+syncdown config set notion.enabled true
+syncdown config set notion.interval 1h
+syncdown config set notion.authMethod oauth
+
+syncdown config set gmail.enabled true
+syncdown config set gmail.interval 1h
+syncdown config set gmail.syncFilter primary
+syncdown config set gmail.fetchConcurrency 10
+
+syncdown config set googleCalendar.enabled true
+syncdown config set googleCalendar.interval 1h
+syncdown config set googleCalendar.selectedCalendarIds primary,work@example.com
+```
+
+从标准输入读取 secret 值：
+
+```sh
+printf '%s' "$NOTION_TOKEN" | syncdown config set notion.token --stdin
+
+printf '%s' "$NOTION_CLIENT_ID" | syncdown config set notion.oauth.clientId --stdin
+printf '%s' "$NOTION_CLIENT_SECRET" | syncdown config set notion.oauth.clientSecret --stdin
+printf '%s' "$NOTION_REFRESH_TOKEN" | syncdown config set notion.oauth.refreshToken --stdin
+
+printf '%s' "$GOOGLE_CLIENT_ID" | syncdown config set google.clientId --stdin
+printf '%s' "$GOOGLE_CLIENT_SECRET" | syncdown config set google.clientSecret --stdin
+printf '%s' "$GOOGLE_REFRESH_TOKEN" | syncdown config set google.refreshToken --stdin
+```
+
+设置完成后运行一次同步：
+
+```sh
+syncdown run
+```
+
+逐条命令参考请看 [CLI](/docs/cli)。
+
+## 配置键参考
+
+### 设置普通值
+
+普通配置值使用 `syncdown config set <key> <value>`。
+
+### 设置 secret 值
+
+secret-backed 值使用 `syncdown config set <key> --stdin`，并通过标准输入传入内容。
+
+取消设置：
+
+```sh
+syncdown config unset outputDir
+syncdown config unset notion.token
+syncdown config unset notion.oauth.clientId
+syncdown config unset notion.oauth.clientSecret
+syncdown config unset notion.oauth.refreshToken
+syncdown config unset google.clientId
+syncdown config unset google.clientSecret
+syncdown config unset google.refreshToken
+```
+
+## 支持的配置键
+
+普通配置值：
+
+- `outputDir`
+- `notion.enabled`
+- `notion.interval`
+- `notion.authMethod`
+- `gmail.enabled`
+- `gmail.interval`
+- `gmail.syncFilter`
+- `gmail.fetchConcurrency`
+- `googleCalendar.enabled`
+- `googleCalendar.interval`
+- `googleCalendar.selectedCalendarIds`
+
+secret-backed 值：
+
+- `notion.token`
+- `notion.oauth.clientId`
+- `notion.oauth.clientSecret`
+- `notion.oauth.refreshToken`
+- `google.clientId`
+- `google.clientSecret`
+- `google.refreshToken`
+
+## interval 行为
+
+connector interval 按 integration 保存：
+
+- `notion.interval`
+- `gmail.interval`
+- `googleCalendar.interval`
+
+这些 interval 会在 TUI 同步面板启动 **按 integration 的 watch** 模式时使用。
+
+CLI 的 watch 命令则不同：
+
+```sh
+syncdown run --watch --interval 5m
+```
+
+`run --watch` 会对所有启用的 connector 使用同一个全局 interval。省略 `--interval` 时，默认值为 `1h`。
+
+关于 watch 模式和单次同步命令，请查看 [同步](/docs/sync)。

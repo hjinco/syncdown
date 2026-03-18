@@ -5,9 +5,36 @@ description: Go from a fresh install to your first local Markdown sync with the 
 
 # Getting Started
 
-This guide is the fastest way to get `syncdown` working if you want to use the full-screen TUI.
+This guide is the fastest way to go from a fresh machine to your first local Markdown sync with the full-screen TUI.
 
-## 1. Launch the TUI
+## 1. Install `syncdown`
+
+If `syncdown` is not already available on your `PATH`, install the prebuilt binary first.
+
+`syncdown` publishes release binaries for:
+
+```text
+darwin-arm64
+darwin-x64
+linux-x64
+windows-x64
+```
+
+On macOS and Linux:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/hjinco/syncdown/main/scripts/install.sh | sh
+```
+
+On Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/hjinco/syncdown/main/scripts/install.ps1 | iex
+```
+
+Manual downloads are also available from the [GitHub Releases page](https://github.com/hjinco/syncdown/releases).
+
+## 2. Launch the TUI
 
 Open an interactive terminal and run:
 
@@ -23,7 +50,7 @@ This opens the OpenTUI app. It includes:
 
 If you run `syncdown` without a TTY, it prints help instead of opening the UI.
 
-## 2. Choose an output directory
+## 3. Choose an output directory
 
 In the TUI, open **Output** and select a preset or enter a custom path.
 
@@ -31,7 +58,7 @@ In the TUI, open **Output** and select a preset or enter a custom path.
 
 Treat the Markdown files and connector folders under that output tree as `syncdown`-managed output. It is best not to manually edit, rename, move, or reorganize generated `.md` files or folders there, because later syncs or full resyncs may recreate, overwrite, or remove them.
 
-## 3. Connect a source
+## 4. Connect a source
 
 ### Notion
 
@@ -52,7 +79,7 @@ Open **Connectors → Google Calendar**.
 
 Use **Connect Google account** if you do not already have a shared Google account connected, then open **Select calendars** and choose the calendars you want to sync.
 
-## 4. Run your first sync
+## 5. Run your first sync
 
 From the TUI home screen, open **Sync** and choose:
 
@@ -72,7 +99,7 @@ syncdown run --watch --interval 5m
 
 If you omit `--interval`, the default is `1h`.
 
-## 5. Confirm the result
+## 6. Confirm the result
 
 Check your output directory for Markdown files grouped by connector.
 

@@ -1,0 +1,95 @@
+---
+title: 동기화
+description: 단발성 동기화, watch 모드, TUI 동기화 대시보드를 실행합니다.
+---
+
+# 동기화
+
+## 한 번 동기화 실행
+
+CLI에서 활성화된 모든 커넥터를 한 번 실행합니다.
+
+```sh
+syncdown run
+```
+
+특정 커넥터 또는 integration만 대상으로 실행할 수도 있습니다.
+
+```sh
+syncdown run --connector notion
+syncdown run --connector google-calendar
+syncdown run --integration notion-default
+```
+
+선택한 대상에 대해 전체 재동기화를 강제하려면:
+
+```sh
+syncdown run --integration notion-default --reset
+```
+
+`--reset`은 단발성 실행에서만 사용할 수 있습니다. 새 동기화를 시작하기 전에 선택한 integration 상태를 지우고 렌더링된 Markdown 파일을 삭제합니다.
+
+## 전역 CLI watch 모드
+
+프로세스를 유지한 채 하나의 공용 interval로 모든 활성 커넥터를 다시 실행합니다.
+
+```sh
+syncdown run --watch
+syncdown run --watch --interval 5m
+```
+
+지원되는 watch interval:
+
+```text
+5m, 15m, 1h, 6h, 24h
+```
+
+interval을 지정하지 않으면 기본값은 `1h`입니다.
+
+## TUI 동기화 대시보드
+
+TUI는 별도의 동기화 대시보드에서 다음 작업을 제공합니다.
+
+- 모든 활성 커넥터 즉시 실행
+- 전체, Notion, Gmail, Google Calendar 대상 전체 재동기화 실행
+- Notion 즉시 실행
+- Gmail 즉시 실행
+- Google Calendar 즉시 실행
+- watch 모드 시작
+- watch 모드 중지
+- 화면에 보이는 대시보드 로그 지우기
+
+`syncdown run --watch`와 달리 TUI 대시보드는 **integration별 watch** 모드를 시작합니다. 즉, 각 활성 커넥터가 자신의 설정된 interval을 사용합니다.
+
+## 런타임 동작
+
+동기화 세션 중 `syncdown`은 다음 상태를 추적합니다.
+
+- 현재 상태: `idle`, `running`, `watching`
+- integration별 상태와 대기 중인 실행
+- 최근 로그 라인
+- 마지막 실행 대상, 타임스탬프, 종료 코드, 마지막 오류
+
+이 상태가 TUI 대시보드와 watch 루프를 구동합니다.
+
+## 종료 코드
+
+CLI는 명시적인 실행 종료 코드를 제공합니다.
+
+| 코드 | 의미 |
+| --- | --- |
+| `0` | 성공 |
+| `2` | 설정 오류 |
+| `3` | 다른 동기화가 이미 실행 중 |
+| `4` | 커넥터 검증 실패 |
+| `5` | 커넥터 동기화 실패 |
+
+## 관련 명령
+
+```sh
+syncdown status
+syncdown connectors
+syncdown doctor
+```
+
+`status`는 빠른 요약, `connectors`는 커넥터 목록, `doctor`는 경로와 상태 진단에 사용합니다.

@@ -1,0 +1,117 @@
+---
+title: Google Calendar
+description: 共有 Google OAuth で Google Calendar を接続し、選択したカレンダーのイベント同期を理解します。
+---
+
+# Google Calendar
+
+## 認証モデル
+
+Google Calendar コネクタは共有 Google OAuth アカウントを使い、Calendar readonly scope が必要です。
+
+```text
+https://www.googleapis.com/auth/calendar.readonly
+```
+
+Gmail も有効な場合、`syncdown` は同じ Google アカウントに対して Gmail と Calendar の scope の和集合を要求します。
+
+## ここでの OAuth の意味
+
+OAuth を使うと、`syncdown` に Google アカウントのパスワードを共有する代わりに、ブラウザでカレンダーアクセスを承認できます。
+
+Google Calendar では次を意味します。
+
+- Google の **Desktop app** OAuth client を作成するか既存のものを再利用します。
+- client ID と client secret を `syncdown` に貼り付けます。
+- `syncdown` に必要な Calendar scope に対して Google がブラウザ同意画面を表示します。
+- 後続同期で毎回再接続しなくて済むように、`syncdown` が接続を完了します。
+
+Google OAuth アカウントは Gmail と Google Calendar コネクタで共有されます。必要な scope が揃っていれば、1 つの Google アカウントで両方のコネクタを満たせます。
+
+## TUI セットアップ
+
+**Connectors → Google Calendar** を開きます。
+
+共有 Google アカウントが未接続、または scope の拡張が必要な場合は **Connect Google account** を使い、その後 **Select calendars** を開いて同期するカレンダーを選択します。
+
+### 始める前に
+
+Google Cloud Console で Google の **Desktop app** OAuth client を準備してください。
+
+直接開く: [Google Auth platform clients](https://console.cloud.google.com/auth/clients)。
+
+必要なもの:
+
+- Desktop app client ID
+- Desktop app client secret
+
+TUI は Google OAuth client の設定ページを開き、新しい client を作成したり既存の値をコピーしたりできるようにします。
+
+### 接続中に起こること
+
+1. Google client ID を貼り付ける。
+2. Google client secret を貼り付ける。
+3. `syncdown` がブラウザで Google の同意画面を開く。
+4. 要求された Calendar readonly scope を承認する。
+5. Google が `syncdown` のローカル callback サーバーへリダイレクトする。
+6. `syncdown` が付与された scope を検証して接続を完了する。
+7. **Select calendars** に戻り、同期するカレンダーを選択する。
+
+### 共有 Google アカウントと scope 拡張
+
+- Gmail と Google Calendar は `syncdown` に保存された同じ Google アカウントを使います。
+- 先に Gmail を接続していた場合、Google Calendar のために追加の Calendar scope を承認する再接続が必要になることがあります。
+- 逆に先に Calendar を接続していた場合、後から Gmail を有効にすると Gmail scope のために再接続が必要になることがあります。
+- 再接続すると共有 Google アカウントの認証情報が更新され、コネクタごとに別アカウントを用意する必要はありません。
+
+## ヘッドレス設定
+
+```sh
+syncdown config set googleCalendar.enabled true
+syncdown config set googleCalendar.interval 1h
+syncdown config set googleCalendar.selectedCalendarIds primary,work@example.com
+
+printf '%s' "$GOOGLE_CLIENT_ID" | syncdown config set google.clientId --stdin
+printf '%s' "$GOOGLE_CLIENT_SECRET" | syncdown config set google.clientSecret --stdin
+printf '%s' "$GOOGLE_REFRESH_TOKEN" | syncdown config set google.refreshToken --stdin
+```
+
+## 何が同期されるか
+
+現在の Google Calendar コネクタは次を行います。
+
+- `googleCalendar.selectedCalendarIds` に列挙されたカレンダーのみ同期する
+- イベントまたは定期シリーズごとに 1 つの Markdown ファイルを書き込む
+- 各発生インスタンスに展開せず、定期シリーズをシリーズ単位ドキュメントとして保持する
+- イベントメタデータと説明本文を保存する
+- 出力をカレンダー、年、月ごとに整理する
+
+## 増分挙動
+
+初回実行では、選択された各カレンダーに対してフルスキャンを行い、カレンダーごとの sync token を保存します。
+
+後続実行では、そのカレンダーごとの sync token を使って変更されたイベントだけを取得します。
+
+保存済み sync token の期限が切れた場合、`syncdown` はそのカレンダーのフル再構築にフォールバックします。
+
+`googleCalendar.selectedCalendarIds` からカレンダーを外すと、次回同期でそのカレンダーのローカル Markdown ファイルは削除されます。
+
+## 設定オプション
+
+### `googleCalendar.selectedCalendarIds`
+
+同期に含めるカレンダー ID をカンマ区切りで指定します。
+
+例:
+
+```text
+primary
+primary,work@example.com
+```
+
+## 現在の制限
+
+- 選択したカレンダーのみ
+- 発生単位の定期展開なし
+- 任意の期間指定同期なし
+- 無人実行には有効な Google refresh token が必要

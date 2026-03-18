@@ -1,0 +1,134 @@
+---
+title: Gmail
+description: Google OAuth で Gmail を接続し、現在の同期範囲を理解します。
+---
+
+# Gmail
+
+## 認証モデル
+
+Gmail コネクタは Google OAuth を使い、Gmail readonly scope が必要です。
+
+```text
+https://www.googleapis.com/auth/gmail.readonly
+```
+
+## ここでの OAuth の意味
+
+OAuth を使うと、`syncdown` に Google アカウントのパスワードを渡す代わりに、ブラウザで Gmail アクセスを承認できます。
+
+Gmail では次を意味します。
+
+- Google の **Desktop app** OAuth client を作成するか既存のものを再利用します。
+- client ID と client secret を `syncdown` に貼り付けます。
+- `syncdown` に必要な Gmail scope に対して Google がブラウザ同意画面を表示します。
+- 後続同期で毎回再接続しなくて済むように、`syncdown` が接続を完了します。
+
+後続の実行では、承認済みの接続を自動で使い続けます。
+
+## TUI セットアップ
+
+**Connectors → Gmail** を開き、**Connect Google account** を選択します。
+
+TUI は次を求めます。
+
+- Google Desktop app client ID
+- Google Desktop app client secret
+
+その後ブラウザを開き、ローカル callback を待ち、付与された scope を検証して接続を完了します。
+
+### 始める前に
+
+Google Cloud Console で Google の **Desktop app** OAuth client を準備してください。
+
+直接開く: [Google Auth platform clients](https://console.cloud.google.com/auth/clients)。
+
+必要なもの:
+
+- Desktop app client ID
+- Desktop app client secret
+
+TUI は Google OAuth client の設定ページを開き、新しい client を作成したり既存の値をコピーしたりできるようにします。
+
+### 接続中に起こること
+
+1. Google client ID を貼り付ける。
+2. Google client secret を貼り付ける。
+3. `syncdown` がブラウザで Google の同意画面を開く。
+4. 要求された Gmail readonly scope を承認する。
+5. Google が `syncdown` のローカル callback サーバーへリダイレクトする。
+6. `syncdown` が付与された scope が十分かを検証して接続を完了する。
+
+### Gmail scope に関する注意
+
+- Gmail 同期には `https://www.googleapis.com/auth/gmail.readonly` が必要です。
+- 後から Google Calendar も有効にすると、`syncdown` は同じ Google アカウントに対して Gmail と Calendar の scope の和集合を要求します。
+- 接続済み Google アカウントに新たに必要な scope が不足している場合は、再接続して更新された同意画面を承認してください。
+
+## ヘッドレス設定
+
+```sh
+syncdown config set gmail.enabled true
+syncdown config set gmail.interval 1h
+syncdown config set gmail.syncFilter primary
+syncdown config set gmail.fetchConcurrency 10
+
+printf '%s' "$GOOGLE_CLIENT_ID" | syncdown config set google.clientId --stdin
+printf '%s' "$GOOGLE_CLIENT_SECRET" | syncdown config set google.clientSecret --stdin
+printf '%s' "$GOOGLE_REFRESH_TOKEN" | syncdown config set google.refreshToken --stdin
+```
+
+## 何が同期されるか
+
+現在の Gmail コネクタは次を行います。
+
+- 既定では `Primary` 受信トレイメッセージを同期する
+- `gmail.syncFilter=primary-important` を使うと `Primary` と `Important` の両方を要求できる
+- メッセージごとに 1 つの Markdown ファイルを書き込む
+- メッセージメタデータと本文テキストを保存する
+- 出力ディレクトリでアカウントメール、年、月ごとに整理する
+
+## 増分挙動
+
+初回実行では、アクティブな Gmail フィルタからメッセージ ID を流し込み、条件に合う受信トレイ全体を走査します。
+
+後続実行では Gmail history ID を使って変更されたメッセージだけを取得します。
+
+保存済み Gmail history cursor が期限切れの場合、または古いフィルタ形式由来の cursor の場合、`syncdown` はスコープ付きフル再走査にフォールバックします。
+
+メッセージが消えたか、現在の Gmail フィルタに合わなくなった場合、対応するローカル Markdown ファイルは削除されます。
+
+## チューニングオプション
+
+### `gmail.fetchConcurrency`
+
+並列取得するメッセージ数を制御します。
+
+既定値:
+
+```text
+10
+```
+
+### `gmail.syncFilter`
+
+どの受信トレイメッセージを Gmail 同期対象にするかを制御します。
+
+対応値:
+
+```text
+primary
+primary-important
+```
+
+挙動:
+
+- `primary`: `INBOX ∩ CATEGORY_PERSONAL` のみ同期
+- `primary-important`: `INBOX ∩ CATEGORY_PERSONAL ∩ IMPORTANT` のみ同期
+
+## 現在の制限
+
+- `Primary` 範囲の受信トレイ同期のみ
+- 添付ファイルのエクスポートなし
+- インラインアセットのエクスポートなし
+- 無人実行には有効な Google refresh token が必要
