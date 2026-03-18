@@ -33,10 +33,27 @@ test("buildRelativePath uses unknown buckets for gmail documents without created
 	);
 });
 
-test("buildRelativePath falls back to createdAt for calendar buckets", () => {
+test("buildRelativePath uses calendarEventId for filenames and createdAt for calendar buckets", () => {
 	const document = createSnapshot({
 		connectorId: "google-calendar",
-		sourceId: "event-123",
+		sourceId: "primary:event-123",
+		entityType: "event",
+		pathHint: { kind: "calendar-event", calendarName: "Primary Calendar" },
+		metadata: {
+			createdAt: "2026-03-17T07:00:00.000Z",
+			calendarEventId: "event-123",
+		},
+	});
+
+	expect(buildRelativePath(document)).toBe(
+		"google-calendar/primary-calendar/2026/03/launch-status-update-event-123.md",
+	);
+});
+
+test("buildRelativePath falls back to sourceId when calendarEventId is missing", () => {
+	const document = createSnapshot({
+		connectorId: "google-calendar",
+		sourceId: "primary:event-123",
 		entityType: "event",
 		pathHint: { kind: "calendar-event", calendarName: "Primary Calendar" },
 		metadata: {
@@ -45,7 +62,7 @@ test("buildRelativePath falls back to createdAt for calendar buckets", () => {
 	});
 
 	expect(buildRelativePath(document)).toBe(
-		"google-calendar/primary-calendar/2026/03/launch-status-update-event-123.md",
+		"google-calendar/primary-calendar/2026/03/launch-status-update-primary:event-123.md",
 	);
 });
 

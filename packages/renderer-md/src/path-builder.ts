@@ -23,8 +23,19 @@ function getGmailAccountSegment(document: SourceSnapshot): string {
 	);
 }
 
+function getFileIdentifier(document: SourceSnapshot): string {
+	if (document.pathHint.kind === "calendar-event") {
+		const eventId = document.metadata.calendarEventId;
+		if (typeof eventId === "string" && eventId.trim().length > 0) {
+			return eventId;
+		}
+	}
+
+	return document.sourceId;
+}
+
 export function buildRelativePath(document: SourceSnapshot): string {
-	const fileName = `${document.slug || slugifySegment(document.title)}-${document.sourceId}.md`;
+	const fileName = `${document.slug || slugifySegment(document.title)}-${getFileIdentifier(document)}.md`;
 	if (document.pathHint.kind === "message") {
 		const createdAt = document.metadata.createdAt
 			? new Date(document.metadata.createdAt)

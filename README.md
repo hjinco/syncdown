@@ -114,7 +114,7 @@ Rendered files are grouped by connector. Typical paths look like this:
 notion/pages/project-plan-<source-id>.md
 notion/databases/tasks/task-item-<source-id>.md
 gmail/account-example-com/2026/03/weekly-update-<message-id>.md
-google-calendar/primary/2026/03/team-sync-<calendar-id:event-id>.md
+google-calendar/primary/2026/03/team-sync-<event-id>.md
 ```
 
 Rendered Markdown includes YAML frontmatter with connector metadata and source-specific fields, so synced data stays available as both readable content and structured metadata.

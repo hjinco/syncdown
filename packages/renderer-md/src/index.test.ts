@@ -112,6 +112,15 @@ test("renderer exposes connector-specific versions", () => {
 	expect(renderer.getVersion("google-calendar")).toBe("1");
 });
 
+test("calendar paths use event ids for filenames when available", () => {
+	const renderer = createMarkdownRenderer();
+	const document = renderer.render(createCalendarSnapshot());
+
+	expect(document.relativePath).toBe(
+		"google-calendar/primary-calendar/2026/03/weekly-review-event-123.md",
+	);
+});
+
 test("notion database item paths omit integration ids", () => {
 	const renderer = createMarkdownRenderer();
 	const document = renderer.render(createNotionSnapshot());
