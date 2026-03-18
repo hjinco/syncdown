@@ -5,7 +5,7 @@
 	"sideEffects": false,
 	"scripts": {
 		"dev": "vite dev",
-		"build": "vite build",
+		"build": "SYNCDOWN_DOCS_PRERENDER=false vite build",
 		"preview": "wrangler dev --config .output/server/wrangler.json",
 		"deploy": "wrangler deploy --config .output/server/wrangler.json",
 		"typecheck": "fumadocs-mdx && tsgo --noEmit",

@@ -5,6 +5,8 @@ import mdx from "fumadocs-mdx/vite";
 import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 
+const prerenderEnabled = process.env.SYNCDOWN_DOCS_PRERENDER !== "false";
+
 export default defineConfig({
 	server: {
 		port: 3000,
@@ -14,7 +16,7 @@ export default defineConfig({
 		tailwindcss(),
 		tanstackStart({
 			prerender: {
-				enabled: true,
+				enabled: prerenderEnabled,
 			},
 		}),
 		react(),

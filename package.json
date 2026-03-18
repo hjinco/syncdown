@@ -11,8 +11,8 @@
 	"scripts": {
 		"changeset": "changeset",
 		"turbo": "turbo",
-		"build": "turbo run build --filter=docs",
-		"build:docs": "turbo run build --filter=docs",
+		"build": "bun run --cwd apps/docs build",
+		"build:docs": "bun run --cwd apps/docs build",
 		"lint": "biome lint .",
 		"lint:fix": "biome check --write .",
 		"format": "biome format --write .",
