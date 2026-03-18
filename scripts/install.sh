@@ -123,7 +123,18 @@ printf 'Downloading %s\n' "$ARCHIVE_NAME"
 curl -fsSL "$BASE_URL/$ARCHIVE_NAME" -o "$ARCHIVE_PATH"
 curl -fsSL "$BASE_URL/$CHECKSUM_NAME" -o "$CHECKSUM_PATH"
 
-EXPECTED="$(awk -v file="$ARCHIVE_NAME" '$2 == file { print $1 }' "$CHECKSUM_PATH")"
+EXPECTED="$(awk -v file="$ARCHIVE_NAME" '
+  {
+    candidate = $2
+    sub(/^\*/, "", candidate)
+    count = split(candidate, parts, "/")
+
+    if (parts[count] == file) {
+      print $1
+      exit
+    }
+  }
+' "$CHECKSUM_PATH")"
 ACTUAL="$(sha256_file "$ARCHIVE_PATH")"
 
 if [ -z "$EXPECTED" ]; then

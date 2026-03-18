@@ -30,20 +30,21 @@ function Resolve-Tag {
 
   $response = Invoke-WebRequest -UseBasicParsing -Uri "https://api.github.com/repos/$Repo/releases?per_page=100"
   $releases = $response.Content | ConvertFrom-Json
-  $release = $releases |
+  $tag = $releases |
     Where-Object { -not $_.draft -and -not $_.prerelease -and $_.tag_name -match '^cli-v\d+\.\d+\.\d+$' } |
     Sort-Object { Get-VersionFromTag $_.tag_name } -Descending |
+    ForEach-Object { $_.tag_name } |
     Select-Object -First 1
-  if (-not $release.tag_name) {
+  if (-not $tag) {
     throw "Unable to resolve latest CLI release tag."
   }
 
-  return $release.tag_name
+  return $tag
 }
 
 function Get-ExpectedChecksum([string]$ChecksumsPath, [string]$AssetName) {
   foreach ($line in Get-Content -LiteralPath $ChecksumsPath) {
-    if ($line -match '^(?<hash>[a-fA-F0-9]+)\s+(?<file>.+)$' -and $Matches.file -eq $AssetName) {
+    if ($line -match '^(?<hash>[a-fA-F0-9]+)\s+\*?(?<file>.+)$' -and [System.IO.Path]::GetFileName($Matches.file) -eq $AssetName) {
       return $Matches.hash.ToLowerInvariant()
     }
   }
