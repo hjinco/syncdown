@@ -22,6 +22,7 @@ syncdown run --connector <notion|gmail|google-calendar>
 syncdown run --integration <integration-id>
 syncdown run --reset [--connector <notion|gmail|google-calendar>|--integration <integration-id>]
 syncdown run --watch [--interval <5m|15m|1h|6h|24h>]
+syncdown reset --yes
 syncdown connectors
 syncdown doctor
 syncdown update
@@ -110,6 +111,24 @@ syncdown run --integration notion-default --reset
 syncdown run --watch
 syncdown run --watch --interval 15m
 ```
+
+## `syncdown reset --yes`
+
+一次性删除本地 syncdown 应用数据。
+
+```sh
+syncdown reset --yes
+```
+
+会删除以下文件：
+
+- `config.json`
+- `state.db`
+- `secrets.enc`
+- `master.key`
+- `sync.lock`
+
+不会删除已配置 `outputDir` 下的已同步 Markdown 输出。
 
 ## `syncdown connectors`
 

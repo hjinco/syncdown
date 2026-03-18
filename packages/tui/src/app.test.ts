@@ -9,6 +9,7 @@ import {
 	createDefaultConfig,
 	DEFAULT_GOOGLE_CONNECTION_ID,
 	DEFAULT_GOOGLE_OAUTH_APP_ID,
+	EXIT_CODES,
 	getDefaultIntegration,
 	getGoogleConnectionSecretNames,
 	getGoogleOAuthAppSecretNames,
@@ -136,7 +137,9 @@ function createSecretsStore(initial = new Map<string, string>()) {
 	};
 }
 
-function createApp(): SyncdownApp {
+function createApp(
+	options: { reset?: (io?: AppIo) => Promise<number> } = {},
+): SyncdownApp {
 	return {
 		async inspect() {
 			const config = createConfig();
@@ -271,6 +274,9 @@ function createApp(): SyncdownApp {
 		async run() {
 			throw new Error("unused");
 		},
+		async reset(io) {
+			return options.reset ? options.reset(io) : 0;
+		},
 		async listConnectors() {
 			throw new Error("unused");
 		},
@@ -348,6 +354,7 @@ function createSessionStub(initial = createSyncSnapshot()) {
 	const runCalls: Array<{ target: SyncRunTarget; options?: RunNowOptions }> =
 		[];
 	let cancelCalls = 0;
+	let disposeCalls = 0;
 	const session: SyncSession = {
 		getSnapshot() {
 			return structuredClone(snapshot);
@@ -446,6 +453,7 @@ function createSessionStub(initial = createSyncSnapshot()) {
 			}
 		},
 		async dispose() {
+			disposeCalls += 1;
 			if (watchActive) {
 				await session.stopWatch();
 			}
@@ -457,6 +465,9 @@ function createSessionStub(initial = createSyncSnapshot()) {
 		runCalls,
 		get cancelCalls() {
 			return cancelCalls;
+		},
+		get disposeCalls() {
+			return disposeCalls;
 		},
 		pushSnapshot(next: SyncRuntimeSnapshot) {
 			snapshot = next;
@@ -2405,6 +2416,57 @@ test("diagnostics is reached through Advanced and loads doctor output", async ()
 	tui.destroy();
 });
 
+test("advanced menu exposes reset app data", async () => {
+	const draft = createDraftState(createConfig(), {
+		notionTokenStored: true,
+		googleClientIdStored: false,
+		googleClientSecretStored: false,
+		googleRefreshTokenStored: false,
+	});
+	const options = getRouteOptions({ id: "advanced", selectedIndex: 0 }, draft);
+
+	expect(options.map((option) => option.value)).toContain("resetAppData");
+});
+
+test("reset app data can be cancelled from the TUI", async () => {
+	const { renderer } = await createTestRenderer({ width: 100, height: 30 });
+	let resetCalls = 0;
+	const session = createSessionStub();
+	const tui = await ConfigTuiApp.create(
+		{
+			app: createApp({
+				async reset() {
+					resetCalls += 1;
+					return 0;
+				},
+			}),
+			io: createIo(),
+			secrets: createSecretsStore().store,
+			session: session.session,
+		},
+		createPaths(),
+		createDraftState(createConfig(), {
+			notionTokenStored: true,
+			googleClientIdStored: false,
+			googleClientSecretStored: false,
+			googleRefreshTokenStored: false,
+		}),
+		renderer,
+		createDefaultAuthService(),
+	);
+
+	(tui as any).ui.routes = [{ id: "advanced", selectedIndex: 1 }];
+	await (tui as any).activateCurrentSelection();
+	expect((tui as any).ui.routes.at(-1)?.id).toBe("confirmReset");
+
+	await (tui as any).activateCurrentSelection();
+	expect((tui as any).ui.routes.at(-1)?.id).toBe("advanced");
+	expect(resetCalls).toBe(0);
+	expect(session.disposeCalls).toBe(0);
+
+	tui.destroy();
+});
+
 test("sync dashboard can start watch and run actions", async () => {
 	const { renderer } = await createTestRenderer({ width: 100, height: 30 });
 	const session = createSessionStub();
@@ -2469,6 +2531,100 @@ test("sync dashboard can start watch and run actions", async () => {
 	expect((tui as any).ui.routes.at(-1).snapshot.watch.active).toBe(true);
 
 	tui.destroy();
+});
+
+test("reset app data confirms, disposes the session, and exits the TUI", async () => {
+	const { renderer } = await createTestRenderer({ width: 100, height: 30 });
+	const ioWrites: string[] = [];
+	let resetCalls = 0;
+	const session = createSessionStub();
+	const tui = await ConfigTuiApp.create(
+		{
+			app: createApp({
+				async reset(io) {
+					expect(session.disposeCalls).toBe(1);
+					resetCalls += 1;
+					io?.write("Removed app data:");
+					io?.write("Synced output files were not removed.");
+					return 0;
+				},
+			}),
+			io: {
+				write(line) {
+					ioWrites.push(line);
+				},
+				error() {},
+			},
+			secrets: createSecretsStore().store,
+			session: session.session,
+		},
+		createPaths(),
+		createDraftState(createConfig(), {
+			notionTokenStored: true,
+			googleClientIdStored: false,
+			googleClientSecretStored: false,
+			googleRefreshTokenStored: false,
+		}),
+		renderer,
+		createDefaultAuthService(),
+	);
+
+	const runPromise = tui.run();
+	(tui as any).ui.routes = [{ id: "advanced", selectedIndex: 1 }];
+	await (tui as any).activateCurrentSelection();
+	expect((tui as any).ui.routes.at(-1)?.id).toBe("confirmReset");
+
+	(tui as any).ui.routes.at(-1).selectedIndex = 1;
+	await (tui as any).activateCurrentSelection();
+
+	expect(await runPromise).toBe(0);
+	expect(resetCalls).toBe(1);
+	expect(session.disposeCalls).toBe(1);
+	expect(ioWrites).toContain("Removed app data:");
+	expect(ioWrites).toContain("Synced output files were not removed.");
+});
+
+test("reset app data exits and prints the error when reset fails", async () => {
+	const { renderer } = await createTestRenderer({ width: 100, height: 30 });
+	const ioErrors: string[] = [];
+	const session = createSessionStub();
+	const tui = await ConfigTuiApp.create(
+		{
+			app: createApp({
+				async reset() {
+					expect(session.disposeCalls).toBe(1);
+					return EXIT_CODES.GENERAL_ERROR;
+				},
+			}),
+			io: {
+				write() {},
+				error(line) {
+					ioErrors.push(line);
+				},
+			},
+			secrets: createSecretsStore().store,
+			session: session.session,
+		},
+		createPaths(),
+		createDraftState(createConfig(), {
+			notionTokenStored: true,
+			googleClientIdStored: false,
+			googleClientSecretStored: false,
+			googleRefreshTokenStored: false,
+		}),
+		renderer,
+		createDefaultAuthService(),
+	);
+
+	const runPromise = tui.run();
+	(tui as any).ui.routes = [{ id: "advanced", selectedIndex: 1 }];
+	await (tui as any).activateCurrentSelection();
+	(tui as any).ui.routes.at(-1).selectedIndex = 1;
+	await (tui as any).activateCurrentSelection();
+
+	expect(await runPromise).toBe(EXIT_CODES.GENERAL_ERROR);
+	expect(session.disposeCalls).toBe(1);
+	expect(ioErrors).toEqual(["Failed to reset app data."]);
 });
 
 test("sync dashboard can cancel an active run while the start action is still busy", async () => {
@@ -2562,6 +2718,55 @@ test("sync dashboard can cancel an active run while the start action is still bu
 		kind: "success",
 		text: "Sync cancelled.",
 	});
+
+	tui.destroy();
+});
+
+test("advanced reset is blocked while sync activity is still running", async () => {
+	const { renderer } = await createTestRenderer({ width: 100, height: 30 });
+	let resetCalls = 0;
+	const session = createSessionStub(
+		createSyncSnapshot({
+			watch: {
+				active: true,
+				strategy: { kind: "per-integration" },
+				startedAt: "2026-03-17T00:00:00.000Z",
+			},
+			status: "watching",
+		}),
+	);
+	const tui = await ConfigTuiApp.create(
+		{
+			app: createApp({
+				async reset() {
+					resetCalls += 1;
+					return 0;
+				},
+			}),
+			io: createIo(),
+			secrets: createSecretsStore().store,
+			session: session.session,
+		},
+		createPaths(),
+		createDraftState(createConfig(), {
+			notionTokenStored: true,
+			googleClientIdStored: false,
+			googleClientSecretStored: false,
+			googleRefreshTokenStored: false,
+		}),
+		renderer,
+		createDefaultAuthService(),
+	);
+
+	(tui as any).ui.routes = [{ id: "advanced", selectedIndex: 1 }];
+	await (tui as any).activateCurrentSelection();
+
+	expect((tui as any).ui.routes.at(-1)?.id).toBe("advanced");
+	expect((tui as any).ui.notice).toEqual({
+		kind: "error",
+		text: "Stop the current sync before resetting app data.",
+	});
+	expect(resetCalls).toBe(0);
 
 	tui.destroy();
 });

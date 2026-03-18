@@ -110,6 +110,8 @@ export class MemoryStateStore implements StateStore {
 	async describe(): Promise<string[]> {
 		return [];
 	}
+
+	async dispose(): Promise<void> {}
 }
 
 export class StaticSecretsStore implements SecretsStore {

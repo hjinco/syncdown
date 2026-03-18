@@ -313,6 +313,7 @@ export interface StateStore {
 	upsertSourceSnapshot(snapshot: StoredSourceSnapshot): Promise<void>;
 	deleteSourceSnapshot(integrationId: string, sourceId: string): Promise<void>;
 	describe(): Promise<string[]>;
+	dispose?(): Promise<void>;
 }
 
 export interface SecretsStore {
@@ -482,6 +483,7 @@ export interface SyncdownApp {
 	inspect(): Promise<AppSnapshot>;
 	openSession(io?: AppIo): Promise<SyncSession>;
 	run(io?: AppIo, options?: RunOptions): Promise<number>;
+	reset(io?: AppIo): Promise<number>;
 	listConnectors(io?: AppIo): Promise<number>;
 	doctor(io?: AppIo): Promise<number>;
 }

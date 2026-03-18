@@ -4,6 +4,7 @@ import type {
 	GmailSyncFilter,
 	SyncIntervalPreset,
 	SyncRuntimeEvent,
+	SyncRuntimeSnapshot,
 	UpdateStatus,
 } from "@syncdown/core";
 import {
@@ -60,6 +61,7 @@ import {
 	clampRouteSelection,
 	createConfigUiState,
 	createConfirmDisconnectRoute,
+	createConfirmResetRoute,
 	createConnectorAuthRoute,
 	createConnectorDetailsRoute,
 	createDiagnosticsRoute,
@@ -215,6 +217,15 @@ function createNoopUpdater(): NonNullable<ConfigTuiRequest["updater"]> {
 			throw new Error(SOURCE_UPDATE_REASON);
 		},
 	};
+}
+
+function isSyncSnapshotBusy(snapshot: SyncRuntimeSnapshot): boolean {
+	return (
+		snapshot.watch.active ||
+		snapshot.integrations.some(
+			(integration) => integration.running || integration.queuedImmediateRun,
+		)
+	);
 }
 
 export class ConfigTuiApp {
@@ -998,6 +1009,68 @@ export class ConfigTuiApp {
 				pushRoute(this.ui, createDiagnosticsRoute(this.paths, this.draft));
 				this.refreshView();
 				await this.refreshDiagnostics();
+			} else if (selection === "resetAppData") {
+				if (isSyncSnapshotBusy(this.request.session.getSnapshot())) {
+					setNotice(this.ui, {
+						kind: "error",
+						text: "Stop the current sync before resetting app data.",
+					});
+					this.refreshView();
+					return;
+				}
+
+				pushRoute(this.ui, createConfirmResetRoute());
+				this.refreshView();
+			}
+			return;
+		}
+
+		if (route.id === "confirmReset") {
+			if (selection === "cancel") {
+				popRoute(this.ui);
+				this.refreshView();
+				return;
+			}
+
+			if (selection !== "reset") {
+				return;
+			}
+
+			if (isSyncSnapshotBusy(this.request.session.getSnapshot())) {
+				setNotice(this.ui, {
+					kind: "error",
+					text: "Stop the current sync before resetting app data.",
+				});
+				popRoute(this.ui);
+				this.refreshView();
+				return;
+			}
+
+			const writes: string[] = [];
+			const errors: string[] = [];
+			await this.request.session.dispose();
+			const exitCode = await this.request.app.reset({
+				write(line) {
+					writes.push(line);
+				},
+				error(line) {
+					errors.push(line);
+				},
+			});
+
+			if (exitCode !== EXIT_CODES.OK) {
+				this.finish(exitCode);
+				for (const line of errors.length > 0
+					? errors
+					: ["Failed to reset app data."]) {
+					this.request.io.error(line);
+				}
+				return;
+			}
+
+			this.finish(EXIT_CODES.OK);
+			for (const line of writes) {
+				this.request.io.write(line);
 			}
 			return;
 		}
