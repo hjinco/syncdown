@@ -730,6 +730,15 @@ export function getRouteBody(
 ): string {
 	switch (route.id) {
 		case "home":
+			if (!draft.config.outputDir) {
+				return [
+					"Choose an output folder before configuring connectors or running syncs.",
+					"",
+					"Use a completely empty folder for syncdown output.",
+					"Do not rename or modify syncdown-managed folders or files by hand after setup.",
+				].join("\n");
+			}
+
 			return [
 				...getHomeUpdateBannerLines(route),
 				`Output: ${draft.config.outputDir ?? "<unset>"}`,
@@ -798,8 +807,9 @@ export function getRouteBody(
 				"",
 				"Choose a preset or enter a custom path. Changes are written as soon as you confirm them.",
 				"",
+				"Choose a completely empty folder for syncdown output.",
 				"Syncdown treats this directory as managed output.",
-				"It is best not to rename, move, or reorganize synced Markdown files or connector folders by hand.",
+				"Do not rename, move, modify, or reorganize synced files or internal connector folders by hand.",
 				"Later syncs or full resyncs may recreate, overwrite, or remove them.",
 			].join("\n");
 		case "outputCustom":
@@ -954,6 +964,16 @@ export function getRouteOptions(
 ): UiSelectOption[] {
 	switch (route.id) {
 		case "home":
+			if (!draft.config.outputDir) {
+				return [
+					{
+						name: "Output",
+						description: "Choose the empty folder syncdown will manage",
+						value: "output",
+					},
+				];
+			}
+
 			return [
 				{
 					name: "Sync",

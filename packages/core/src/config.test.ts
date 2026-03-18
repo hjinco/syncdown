@@ -1,10 +1,11 @@
 import { expect, test } from "bun:test";
-import { rm } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
 	ensureAppDirectories,
 	readConfig,
 	resolveAppPaths,
+	validateManagedOutputDirectory,
 	writeConfig,
 } from "./config.js";
 import {
@@ -92,6 +93,37 @@ test("writeConfig persists config after ensuring app directories", async () => {
 				: undefined,
 		).toBe("primary-important");
 		expect(reloaded.outputDir).toBe(config.outputDir);
+	} finally {
+		await cleanup();
+	}
+});
+
+test("validateManagedOutputDirectory allows missing and empty directories", async () => {
+	const { cleanup, paths } = await createTestPaths();
+
+	try {
+		const missingDir = path.join(paths.dataDir, "missing-output");
+		expect(await validateManagedOutputDirectory(missingDir)).toBeNull();
+
+		const emptyDir = path.join(paths.dataDir, "empty-output");
+		await mkdir(emptyDir, { recursive: true });
+		expect(await validateManagedOutputDirectory(emptyDir)).toBeNull();
+	} finally {
+		await cleanup();
+	}
+});
+
+test("validateManagedOutputDirectory rejects non-empty directories", async () => {
+	const { cleanup, paths } = await createTestPaths();
+
+	try {
+		const nonEmptyDir = path.join(paths.dataDir, "non-empty-output");
+		await mkdir(nonEmptyDir, { recursive: true });
+		await writeFile(path.join(nonEmptyDir, ".keep"), "occupied");
+
+		expect(await validateManagedOutputDirectory(nonEmptyDir)).toBe(
+			"Output folder must be completely empty before syncdown can use it.",
+		);
 	} finally {
 		await cleanup();
 	}

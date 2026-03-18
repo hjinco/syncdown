@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import * as OpenTuiTesting from "@opentui/core/testing";
 import {
@@ -25,7 +25,11 @@ import {
 
 import { ConfigTuiApp } from "./app.js";
 import type { GoogleAuthSession, TuiAuthService } from "./auth.js";
-import { createDraftState, normalizeOutputPath } from "./state.js";
+import {
+	buildOutputPresetPaths,
+	createDraftState,
+	normalizeOutputPath,
+} from "./state.js";
 import {
 	createConfirmDisconnectRoute,
 	createConnectorAuthRoute,
@@ -495,6 +499,24 @@ function readConfigFile(paths: AppPaths): SyncdownConfig {
 	return JSON.parse(readFileSync(paths.configPath, "utf8")) as SyncdownConfig;
 }
 
+async function withHomeDirectory<T>(
+	homeDir: string,
+	run: () => Promise<T>,
+): Promise<T> {
+	const previousHome = Bun.env.HOME;
+	Bun.env.HOME = homeDir;
+
+	try {
+		return await run();
+	} finally {
+		if (previousHome === undefined) {
+			delete Bun.env.HOME;
+		} else {
+			Bun.env.HOME = previousHome;
+		}
+	}
+}
+
 function createUpdaterStub(
 	options: {
 		currentVersion?: string;
@@ -954,6 +976,172 @@ test("custom output path autosaves as soon as the page is confirmed", async () =
 	expect(readConfigFile(paths).outputDir).toBe(normalizeOutputPath("./notes"));
 
 	tui.destroy();
+});
+
+test("custom output path saves when the folder already exists and is empty", async () => {
+	const { renderer } = await createTestRenderer({ width: 100, height: 30 });
+	const paths = createPaths();
+	const draft = createDraftState(createConfig(), {
+		notionTokenStored: false,
+		googleClientIdStored: false,
+		googleClientSecretStored: false,
+		googleRefreshTokenStored: false,
+	});
+	const tui = await ConfigTuiApp.create(
+		{
+			app: createApp(),
+			io: createIo(),
+			secrets: createSecretsStore().store,
+			session: createSessionStub().session,
+		},
+		paths,
+		draft,
+		renderer,
+		createDefaultAuthService(),
+	);
+	const emptyDir = path.join(paths.dataDir, "empty-output");
+	mkdirSync(emptyDir, { recursive: true });
+
+	(tui as any).ui.routes = [
+		{ id: "output", selectedIndex: 0 },
+		createOutputCustomRoute(draft),
+	];
+	(tui as any).ui.routes.at(-1).value = emptyDir;
+
+	await (tui as any).submitInput();
+
+	expect((tui as any).ui.routes.at(-1)?.id).toBe("output");
+	expect(draft.config.outputDir).toBe(normalizeOutputPath(emptyDir));
+	expect(readConfigFile(paths).outputDir).toBe(normalizeOutputPath(emptyDir));
+
+	tui.destroy();
+});
+
+test("custom output path rejects an existing non-empty folder", async () => {
+	const { renderer } = await createTestRenderer({ width: 100, height: 30 });
+	const paths = createPaths();
+	const draft = createDraftState(createConfig(), {
+		notionTokenStored: false,
+		googleClientIdStored: false,
+		googleClientSecretStored: false,
+		googleRefreshTokenStored: false,
+	});
+	const tui = await ConfigTuiApp.create(
+		{
+			app: createApp(),
+			io: createIo(),
+			secrets: createSecretsStore().store,
+			session: createSessionStub().session,
+		},
+		paths,
+		draft,
+		renderer,
+		createDefaultAuthService(),
+	);
+	const nonEmptyDir = path.join(paths.dataDir, "non-empty-output");
+	mkdirSync(nonEmptyDir, { recursive: true });
+	writeFileSync(path.join(nonEmptyDir, ".keep"), "occupied");
+
+	(tui as any).ui.routes = [
+		{ id: "output", selectedIndex: 0 },
+		createOutputCustomRoute(draft),
+	];
+	(tui as any).ui.routes.at(-1).value = nonEmptyDir;
+
+	await (tui as any).submitInput();
+
+	expect((tui as any).ui.routes.at(-1)?.id).toBe("outputCustom");
+	expect((tui as any).ui.routes.at(-1)?.error).toBe(
+		"Output folder must be completely empty before syncdown can use it.",
+	);
+	expect((tui as any).ui.notice).toEqual({
+		kind: "error",
+		text: "Output folder must be completely empty before syncdown can use it.",
+	});
+	expect(draft.config.outputDir).toBe("/tmp/output");
+
+	tui.destroy();
+});
+
+test("preset output saves a syncdown subdirectory", async () => {
+	const homeDir = mkdtempSync(
+		path.join(resolveTempDirectory(), "syncdown-home-"),
+	);
+
+	await withHomeDirectory(homeDir, async () => {
+		const { renderer } = await createTestRenderer({ width: 100, height: 30 });
+		const paths = createPaths();
+		const draft = createDraftState(createConfig(), {
+			notionTokenStored: false,
+			googleClientIdStored: false,
+			googleClientSecretStored: false,
+			googleRefreshTokenStored: false,
+		});
+		const tui = await ConfigTuiApp.create(
+			{
+				app: createApp(),
+				io: createIo(),
+				secrets: createSecretsStore().store,
+				session: createSessionStub().session,
+			},
+			paths,
+			draft,
+			renderer,
+			createDefaultAuthService(),
+		);
+		const expected = buildOutputPresetPaths().desktop;
+
+		(tui as any).ui.routes = [{ id: "output", selectedIndex: 0 }];
+		await (tui as any).activateCurrentSelection();
+
+		expect(draft.config.outputDir).toBe(expected);
+		expect(readConfigFile(paths).outputDir).toBe(expected);
+
+		tui.destroy();
+	});
+});
+
+test("preset output rejects a non-empty syncdown subdirectory", async () => {
+	const homeDir = mkdtempSync(
+		path.join(resolveTempDirectory(), "syncdown-home-"),
+	);
+
+	await withHomeDirectory(homeDir, async () => {
+		const { renderer } = await createTestRenderer({ width: 100, height: 30 });
+		const paths = createPaths();
+		const draft = createDraftState(createConfig(), {
+			notionTokenStored: false,
+			googleClientIdStored: false,
+			googleClientSecretStored: false,
+			googleRefreshTokenStored: false,
+		});
+		const tui = await ConfigTuiApp.create(
+			{
+				app: createApp(),
+				io: createIo(),
+				secrets: createSecretsStore().store,
+				session: createSessionStub().session,
+			},
+			paths,
+			draft,
+			renderer,
+			createDefaultAuthService(),
+		);
+		const presetPath = buildOutputPresetPaths().desktop;
+		mkdirSync(presetPath, { recursive: true });
+		writeFileSync(path.join(presetPath, "existing.md"), "occupied");
+
+		(tui as any).ui.routes = [{ id: "output", selectedIndex: 0 }];
+		await (tui as any).activateCurrentSelection();
+
+		expect((tui as any).ui.notice).toEqual({
+			kind: "error",
+			text: "Output folder must be completely empty before syncdown can use it.",
+		});
+		expect(draft.config.outputDir).toBe("/tmp/output");
+
+		tui.destroy();
+	});
 });
 
 test("keyboard typing updates the focused input route", async () => {

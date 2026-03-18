@@ -30,6 +30,7 @@ import {
 	isGmailIntegration,
 	readConfig,
 	resolveAppPaths,
+	validateManagedOutputDirectory,
 	writeConfig,
 } from "@syncdown/core";
 import { createMarkdownRenderer } from "@syncdown/renderer-md";
@@ -414,6 +415,11 @@ async function handleConfigSet(
 			const nextValue = value.trim();
 			if (!nextValue) {
 				io.error("outputDir cannot be empty.");
+				return EXIT_CODES.CONFIG_ERROR;
+			}
+			const validationError = await validateManagedOutputDirectory(nextValue);
+			if (validationError) {
+				io.error(validationError);
 				return EXIT_CODES.CONFIG_ERROR;
 			}
 			config.outputDir = nextValue;

@@ -4,6 +4,7 @@ export {
 	ensureAppDirectories,
 	readConfig,
 	resolveAppPaths,
+	validateManagedOutputDirectory,
 	writeConfig,
 } from "./config.js";
 export {
