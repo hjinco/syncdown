@@ -526,10 +526,10 @@ export function buildOutputPresetPaths(): Record<
 > {
 	const homeDir = resolveHomeDirectory();
 	return {
-		desktop: path.join(homeDir, "Desktop"),
-		documents: path.join(homeDir, "Documents"),
-		downloads: path.join(homeDir, "Downloads"),
-		home: homeDir,
+		desktop: path.join(homeDir, "Desktop", "syncdown"),
+		documents: path.join(homeDir, "Documents", "syncdown"),
+		downloads: path.join(homeDir, "Downloads", "syncdown"),
+		home: path.join(homeDir, "syncdown"),
 	};
 }
 

@@ -1,5 +1,5 @@
 import { constants as fsConstants } from "node:fs";
-import { access, mkdir } from "node:fs/promises";
+import { access, mkdir, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { createDefaultConfig, normalizeConfig } from "./config-model.js";
@@ -111,6 +111,35 @@ export async function writeConfig(
 	await ensureAppDirectories(paths);
 	const serialized = JSON.stringify(config, null, 2);
 	await Bun.write(paths.configPath, `${serialized}\n`);
+}
+
+export async function validateManagedOutputDirectory(
+	outputDir: string,
+): Promise<string | null> {
+	try {
+		const target = await stat(outputDir);
+		if (!target.isDirectory()) {
+			return "Output folder must be an empty directory.";
+		}
+
+		const entries = await readdir(outputDir);
+		if (entries.length > 0) {
+			return "Output folder must be completely empty before syncdown can use it.";
+		}
+
+		return null;
+	} catch (error) {
+		if (
+			error &&
+			typeof error === "object" &&
+			"code" in error &&
+			(error as NodeJS.ErrnoException).code === "ENOENT"
+		) {
+			return null;
+		}
+
+		return "Failed to inspect the output folder.";
+	}
 }
 
 export async function describeOutputDirectory(

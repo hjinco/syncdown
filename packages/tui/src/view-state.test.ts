@@ -7,7 +7,7 @@ import {
 	type SyncdownConfig,
 	type SyncRuntimeSnapshot,
 } from "@syncdown/core";
-import { createDraftState } from "./state.js";
+import { buildOutputPresetPaths, createDraftState } from "./state.js";
 import {
 	createConfigUiState,
 	createConnectorAuthRoute,
@@ -121,6 +121,25 @@ test("home options expose the top-level single-focus sections", () => {
 	).toEqual(["Sync", "Connectors", "Output", "Schedule", "Advanced", "Update"]);
 });
 
+test("home options collapse to output when output directory is missing", () => {
+	const config = createConfig();
+	config.outputDir = undefined;
+	const draft = createDraftState(config, {
+		notionTokenStored: true,
+		googleClientIdStored: true,
+		googleClientSecretStored: true,
+		googleRefreshTokenStored: true,
+	});
+	const ui = createConfigUiState(createPaths(), draft, "0.1.0", true, null);
+
+	expect(
+		getRouteOptions(getCurrentRoute(ui), draft).map((option) => option.name),
+	).toEqual(["Output"]);
+	expect(getRouteBody(getCurrentRoute(ui), createPaths(), draft)).toContain(
+		"Choose an output folder before configuring connectors or running syncs.",
+	);
+});
+
 test("routes push and pop like a page stack", () => {
 	const draft = createDraftState(createConfig(), {
 		notionTokenStored: true,
@@ -194,7 +213,30 @@ test("connector detail and output pages render focused body text", () => {
 	).toContain("Current output directory");
 	expect(
 		getRouteBody({ id: "output", selectedIndex: 0 }, paths, draft),
-	).toContain("Syncdown treats this directory as managed output.");
+	).toContain("Choose a completely empty folder for syncdown output.");
+	expect(
+		getRouteBody({ id: "output", selectedIndex: 0 }, paths, draft),
+	).toContain(
+		"Do not rename, move, modify, or reorganize synced files or internal connector folders by hand.",
+	);
+});
+
+test("output preset options point to syncdown subdirectories", () => {
+	const draft = createDraftState(createConfig(), {
+		notionTokenStored: true,
+		googleClientIdStored: true,
+		googleClientSecretStored: true,
+		googleRefreshTokenStored: true,
+	});
+	const presetPaths = buildOutputPresetPaths();
+	const options = getRouteOptions({ id: "output", selectedIndex: 0 }, draft);
+
+	expect(options.slice(0, 4).map((option) => option.description)).toEqual([
+		presetPaths.desktop,
+		presetPaths.documents,
+		presetPaths.downloads,
+		presetPaths.home,
+	]);
 });
 
 test("home body surfaces an available update above the connector summary", () => {

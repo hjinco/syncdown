@@ -12,8 +12,10 @@ import {
 
 import {
 	applySecretAction,
+	buildOutputPresetPaths,
 	cloneDraftState,
 	createDraftState,
+	detectOutputPreset,
 	getConnectorStatus,
 	getDraftNotionAuthMethod,
 	hasCompleteGoogleCredentials,
@@ -29,6 +31,7 @@ import {
 	stageProviderDisconnect,
 	syncDraftState,
 } from "./state.js";
+import { withHomeDirectory } from "./test-support.js";
 
 function createConfig(): SyncdownConfig {
 	const config = createDefaultConfig();
@@ -215,6 +218,41 @@ test("output preset and interval updates modify the draft immediately", () => {
 
 	expect(draft.config.outputDir).toBe(customPath);
 	expect(getDefaultIntegration(draft.config, "gmail").interval).toBe("24h");
+});
+
+test("output preset paths use syncdown subdirectories", () => {
+	const homeDir = mkdtempSync(
+		path.join(resolveTempDirectory(), "syncdown-home-"),
+	);
+
+	withHomeDirectory(homeDir, () => {
+		const presetPaths = buildOutputPresetPaths();
+
+		expect(presetPaths.desktop).toBe(path.join(homeDir, "Desktop", "syncdown"));
+		expect(presetPaths.documents).toBe(
+			path.join(homeDir, "Documents", "syncdown"),
+		);
+		expect(presetPaths.downloads).toBe(
+			path.join(homeDir, "Downloads", "syncdown"),
+		);
+		expect(presetPaths.home).toBe(path.join(homeDir, "syncdown"));
+	});
+});
+
+test("output preset detection matches syncdown subdirectories", () => {
+	const homeDir = mkdtempSync(
+		path.join(resolveTempDirectory(), "syncdown-home-"),
+	);
+
+	withHomeDirectory(homeDir, () => {
+		const presetPaths = buildOutputPresetPaths();
+
+		expect(detectOutputPreset(presetPaths.desktop)).toBe("desktop");
+		expect(detectOutputPreset(presetPaths.documents)).toBe("documents");
+		expect(detectOutputPreset(presetPaths.downloads)).toBe("downloads");
+		expect(detectOutputPreset(presetPaths.home)).toBe("home");
+		expect(detectOutputPreset(path.join(homeDir, "notes"))).toBe("custom");
+	});
 });
 
 test("clone and sync draft state support atomic persistence", () => {

@@ -13,6 +13,7 @@ import {
 	EXIT_CODES,
 	getGoogleConnectionSecretNames,
 	getGoogleOAuthAppSecretNames,
+	validateManagedOutputDirectory,
 } from "@syncdown/core";
 import type {
 	BrowserOpenResult,
@@ -885,11 +886,7 @@ export class ConfigTuiApp {
 			}
 
 			const presetPaths = buildOutputPresetPaths();
-			const saved = await this.persistDraftMutation(
-				(draft) =>
-					setOutputDirectory(draft, normalizeOutputPath(presetPaths[preset])),
-				"Failed to save output directory.",
-			);
+			const saved = await this.persistOutputDirectory(presetPaths[preset]);
 			if (saved) {
 				setNotice(this.ui, {
 					kind: "success",
@@ -1335,10 +1332,7 @@ export class ConfigTuiApp {
 				return;
 			}
 
-			const saved = await this.persistDraftMutation(
-				(draft) => setOutputDirectory(draft, normalizeOutputPath(value)),
-				"Failed to save output directory.",
-			);
+			const saved = await this.persistOutputDirectory(value, route);
 			if (saved) {
 				popRoute(this.ui);
 				setNotice(this.ui, {
@@ -1966,6 +1960,41 @@ export class ConfigTuiApp {
 			});
 			this.refreshView();
 		}
+	}
+
+	private async persistOutputDirectory(
+		outputDir: string,
+		route?: { error: string | null },
+	): Promise<boolean> {
+		const normalizedOutputDir = normalizeOutputPath(outputDir);
+		const validationError =
+			await this.validateOutputDirectory(normalizedOutputDir);
+		if (validationError) {
+			if (route) {
+				route.error = validationError;
+			}
+			setNotice(this.ui, {
+				kind: "error",
+				text: validationError,
+			});
+			this.refreshView();
+			return false;
+		}
+
+		if (route) {
+			route.error = null;
+		}
+
+		return this.persistDraftMutation(
+			(draft) => setOutputDirectory(draft, normalizedOutputDir),
+			"Failed to save output directory.",
+		);
+	}
+
+	private async validateOutputDirectory(
+		outputDir: string,
+	): Promise<string | null> {
+		return validateManagedOutputDirectory(outputDir);
 	}
 
 	private async persistDraftMutation(

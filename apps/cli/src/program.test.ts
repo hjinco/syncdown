@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
 	type AppIo,
@@ -511,6 +511,32 @@ test("config set stores gmail.syncFilter in the config file", async () => {
 			throw new Error("expected gmail integration");
 		}
 		expect(gmail.config.syncFilter).toBe("primary-important");
+	});
+});
+
+test("config set rejects a non-empty outputDir", async () => {
+	const { io, errors } = createIoCapture();
+	const { app } = createAppStub();
+
+	await withTempCliPaths(async (paths) => {
+		const nonEmptyDir = path.join(paths.dataDir, "non-empty-output");
+		mkdirSync(nonEmptyDir, { recursive: true });
+		writeFileSync(path.join(nonEmptyDir, ".keep"), "occupied");
+
+		const exitCode = await runTestCli(
+			["syncdown", "syncdown", "config", "set", "outputDir", nonEmptyDir],
+			{
+				app,
+				io,
+				secrets: createSecretsStub(),
+			},
+		);
+
+		expect(exitCode).toBe(EXIT_CODES.CONFIG_ERROR);
+		expect(errors).toContain(
+			"Output folder must be completely empty before syncdown can use it.",
+		);
+		expect((await readConfig(paths)).outputDir).toBeUndefined();
 	});
 });
 
