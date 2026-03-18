@@ -35,9 +35,6 @@ test("readConfig returns defaults when config file is missing", async () => {
 			/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
 		);
 		expect(
-			isGmailIntegration(gmail) ? gmail.config.initialSyncLimit : undefined,
-		).toBe(5000);
-		expect(
 			isGmailIntegration(gmail) ? gmail.config.syncFilter : undefined,
 		).toBe("primary");
 	} finally {
@@ -83,7 +80,6 @@ test("writeConfig persists config after ensuring app directories", async () => {
 			throw new Error("expected gmail integration");
 		}
 		gmail.enabled = true;
-		gmail.config.initialSyncLimit = 100;
 		gmail.config.syncFilter = "primary-important";
 		await writeConfig(paths, config);
 
@@ -92,38 +88,10 @@ test("writeConfig persists config after ensuring app directories", async () => {
 		expect(reloadedGmail.enabled).toBe(true);
 		expect(
 			isGmailIntegration(reloadedGmail)
-				? reloadedGmail.config.initialSyncLimit
-				: undefined,
-		).toBe(100);
-		expect(
-			isGmailIntegration(reloadedGmail)
 				? reloadedGmail.config.syncFilter
 				: undefined,
 		).toBe("primary-important");
 		expect(reloaded.outputDir).toBe(config.outputDir);
-	} finally {
-		await cleanup();
-	}
-});
-
-test("writeConfig preserves zero gmail initial sync limit", async () => {
-	const { cleanup, paths, config } = await createTestPaths();
-
-	try {
-		const gmail = getDefaultIntegration(config, "gmail");
-		if (!isGmailIntegration(gmail)) {
-			throw new Error("expected gmail integration");
-		}
-		gmail.config.initialSyncLimit = 0;
-		await writeConfig(paths, config);
-
-		const reloaded = await readConfig(paths);
-		const reloadedGmail = getDefaultIntegration(reloaded, "gmail");
-		expect(
-			isGmailIntegration(reloadedGmail)
-				? reloadedGmail.config.initialSyncLimit
-				: undefined,
-		).toBe(0);
 	} finally {
 		await cleanup();
 	}

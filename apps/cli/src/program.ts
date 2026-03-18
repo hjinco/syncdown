@@ -78,7 +78,6 @@ function getHelpLines(): string[] {
 		"  notion.oauth.refreshToken",
 		"  gmail.enabled",
 		"  gmail.interval",
-		"  gmail.initialSyncLimit",
 		"  gmail.fetchConcurrency",
 		"  gmail.syncFilter",
 		"  googleCalendar.enabled",
@@ -171,7 +170,7 @@ async function loadConfig(): Promise<{
 
 function printConfigSetUsage(io: AppIo): void {
 	io.error(
-		"Usage: syncdown config set <outputDir|notion.enabled|notion.interval|notion.authMethod|notion.token|notion.oauth.clientId|notion.oauth.clientSecret|notion.oauth.refreshToken|gmail.enabled|gmail.interval|gmail.initialSyncLimit|gmail.fetchConcurrency|gmail.syncFilter|googleCalendar.enabled|googleCalendar.interval|googleCalendar.selectedCalendarIds|google.clientId|google.clientSecret|google.refreshToken> <value|--stdin>",
+		"Usage: syncdown config set <outputDir|notion.enabled|notion.interval|notion.authMethod|notion.token|notion.oauth.clientId|notion.oauth.clientSecret|notion.oauth.refreshToken|gmail.enabled|gmail.interval|gmail.fetchConcurrency|gmail.syncFilter|googleCalendar.enabled|googleCalendar.interval|googleCalendar.selectedCalendarIds|google.clientId|google.clientSecret|google.refreshToken> <value|--stdin>",
 	);
 }
 
@@ -202,23 +201,6 @@ function parsePositiveInteger(value: string): number | null {
 
 	const parsed = Number(value);
 	return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
-}
-
-function parseNonNegativeInteger(value: string): number | null {
-	if (!/^\d+$/.test(value)) {
-		return null;
-	}
-
-	const parsed = Number(value);
-	return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
-}
-
-function formatGmailInitialSyncLimit(value: number | undefined): string {
-	if (value === 0) {
-		return "all";
-	}
-
-	return String(value ?? 5000);
 }
 
 function parseRunOptions(args: string[], io: AppIo): RunOptions | null {
@@ -544,21 +526,6 @@ async function handleConfigSet(
 			);
 			return EXIT_CODES.OK;
 		}
-		case "gmail.initialSyncLimit": {
-			const parsed = parseNonNegativeInteger(value.trim());
-			if (parsed === null) {
-				io.error(
-					"gmail.initialSyncLimit must be a non-negative integer. Use 0 to sync all matching messages.",
-				);
-				return EXIT_CODES.CONFIG_ERROR;
-			}
-			getGmailIntegrationConfig(config).config.initialSyncLimit = parsed;
-			await writeConfig(paths, config);
-			io.write(
-				`Set gmail.initialSyncLimit=${getGmailIntegrationConfig(config).config.initialSyncLimit}`,
-			);
-			return EXIT_CODES.OK;
-		}
 		case "gmail.fetchConcurrency": {
 			const parsed = parsePositiveInteger(value.trim());
 			if (parsed === null) {
@@ -764,7 +731,7 @@ async function printOverview(
 		`notion: ${(notion?.enabled ?? notionConfig.enabled) ? "enabled" : "disabled"} | method=${getNotionAuthMethod(snapshot.config)} | interval=${notion?.interval ?? notionConfig.interval} | credentials=${notionCredentials} | last sync=${notion?.lastSyncAt ?? "never"}`,
 	);
 	io.write(
-		`gmail: ${(gmail?.enabled ?? gmailConfig.enabled) ? "enabled" : "disabled"} | interval=${gmail?.interval ?? gmailConfig.interval} | filter=${gmailConfig.config.syncFilter ?? "primary"} | initial limit=${formatGmailInitialSyncLimit(gmailConfig.config.initialSyncLimit)} | concurrency=${gmailConfig.config.fetchConcurrency ?? 10} | credentials=${gmailCredentials} | last sync=${gmail?.lastSyncAt ?? "never"}`,
+		`gmail: ${(gmail?.enabled ?? gmailConfig.enabled) ? "enabled" : "disabled"} | interval=${gmail?.interval ?? gmailConfig.interval} | filter=${gmailConfig.config.syncFilter ?? "primary"} | concurrency=${gmailConfig.config.fetchConcurrency ?? 10} | credentials=${gmailCredentials} | last sync=${gmail?.lastSyncAt ?? "never"}`,
 	);
 	io.write(
 		`google-calendar: ${(googleCalendar?.enabled ?? googleCalendarConfig.enabled) ? "enabled" : "disabled"} | interval=${googleCalendar?.interval ?? googleCalendarConfig.interval} | selected calendars=${googleCalendarConfig.config.selectedCalendarIds.length} | credentials=${googleCalendarCredentials} | last sync=${googleCalendar?.lastSyncAt ?? "never"}`,
@@ -796,8 +763,6 @@ async function printOverview(
 			);
 			io.write("- Example: `syncdown config set gmail.enabled true`");
 			io.write("- Example: `syncdown config set gmail.syncFilter primary`");
-			io.write("- Example: `syncdown config set gmail.initialSyncLimit 5000`");
-			io.write("- Example: `syncdown config set gmail.initialSyncLimit 0`");
 			io.write("- Example: `syncdown config set gmail.fetchConcurrency 10`");
 			io.write("- Example: `syncdown config set googleCalendar.enabled true`");
 			io.write(

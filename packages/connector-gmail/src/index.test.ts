@@ -352,17 +352,11 @@ test("default adapter validates credentials with fetch-based Gmail API calls", a
 test("initial inbox sync persists one snapshot per message and stores next history id", async () => {
 	const persisted: SourceSnapshot[] = [];
 	let requestedFilter: string | undefined;
-	let requestedLimit: number | undefined;
 	const writes: string[] = [];
 	const connector = createGmailConnector({
 		adapter: createAdapter({
-			async listInboxMessageIds(
-				_credentials,
-				syncFilter,
-				limit,
-			): Promise<string[]> {
+			async listInboxMessageIds(_credentials, syncFilter): Promise<string[]> {
 				requestedFilter = syncFilter;
-				requestedLimit = limit;
 				return ["m1", "m2"];
 			},
 		}),
@@ -371,13 +365,8 @@ test("initial inbox sync persists one snapshot per message and stores next histo
 	const result = await connector.sync(
 		createRequest(
 			createAdapter({
-				async listInboxMessageIds(
-					_credentials,
-					syncFilter,
-					limit,
-				): Promise<string[]> {
+				async listInboxMessageIds(_credentials, syncFilter): Promise<string[]> {
 					requestedFilter = syncFilter;
-					requestedLimit = limit;
 					return ["m1", "m2"];
 				},
 			}),
@@ -399,7 +388,6 @@ test("initial inbox sync persists one snapshot per message and stores next histo
 		JSON.stringify({ historyId: "300", syncFilter: "primary" }),
 	);
 	expect(requestedFilter).toBe("primary");
-	expect(requestedLimit).toBe(5000);
 	expect(persisted.map((source) => source.sourceId)).toEqual(["m1", "m2"]);
 	expect(persisted.map((source) => source.metadata.gmailAccountEmail)).toEqual([
 		"owner@example.com",
@@ -410,7 +398,7 @@ test("initial inbox sync persists one snapshot per message and stores next histo
 		"owner@example.com",
 	]);
 	expect(writes).toContain(
-		"Gmail progress: streaming initial sync limit=5000 concurrency=10",
+		"Gmail progress: streaming inbox scan concurrency=10",
 	);
 });
 
@@ -535,66 +523,18 @@ test("incremental history sync publishes structured determinate progress", async
 	});
 });
 
-test("initial inbox sync respects configured initial sync limit", async () => {
+test("initial inbox sync scans the full filtered inbox", async () => {
 	let requestedFilter: string | undefined;
-	let requestedLimit: number | undefined;
 	const adapter = createAdapter({
-		async listInboxMessageIds(
-			_credentials,
-			syncFilter,
-			limit,
-		): Promise<string[]> {
+		async listInboxMessageIds(_credentials, syncFilter): Promise<string[]> {
 			requestedFilter = syncFilter;
-			requestedLimit = limit;
 			return ["m1"];
 		},
 	});
 	const connector = createGmailConnector({ adapter });
-	const request = createRequest(adapter);
-	if (request.integration.connectorId !== "gmail") {
-		throw new Error("expected gmail integration");
-	}
-	request.integration.config.initialSyncLimit = 25;
-
-	await connector.sync(request);
+	await connector.sync(createRequest(adapter));
 
 	expect(requestedFilter).toBe("primary");
-	expect(requestedLimit).toBe(25);
-});
-
-test("initial inbox sync treats zero initial sync limit as unlimited", async () => {
-	let requestedLimit: number | undefined = -1;
-	const writes: string[] = [];
-	const adapter = createAdapter({
-		async listInboxMessageIds(
-			_credentials,
-			_syncFilter,
-			limit,
-		): Promise<string[]> {
-			requestedLimit = limit;
-			return ["m1"];
-		},
-	});
-	const connector = createGmailConnector({ adapter });
-	const request = createRequest(adapter, {
-		io: {
-			write(line) {
-				writes.push(line);
-			},
-			error() {},
-		},
-	});
-	if (request.integration.connectorId !== "gmail") {
-		throw new Error("expected gmail integration");
-	}
-	request.integration.config.initialSyncLimit = 0;
-
-	await connector.sync(request);
-
-	expect(requestedLimit).toBeUndefined();
-	expect(writes).toContain(
-		"Gmail progress: streaming initial sync limit=all concurrency=10",
-	);
 });
 
 test("message fetches honor configured concurrency", async () => {
@@ -699,100 +639,6 @@ test("initial inbox sync persists completed messages without waiting for slower 
 	expect(completed).toBe(true);
 });
 
-test("default adapter stops paging once the initial sync limit is reached", async () => {
-	const originalFetch = globalThis.fetch;
-	const fetchCalls: string[] = [];
-
-	globalThis.fetch = (async (input) => {
-		const url = String(input);
-		fetchCalls.push(url);
-
-		if (url === "https://oauth2.googleapis.com/token") {
-			return new Response(
-				JSON.stringify({ access_token: "access-token", expires_in: 3600 }),
-				{
-					status: 200,
-					headers: {
-						"content-type": "application/json",
-					},
-				},
-			);
-		}
-
-		if (url === "https://gmail.googleapis.com/gmail/v1/users/me/profile") {
-			return new Response(JSON.stringify({ historyId: "300" }), {
-				status: 200,
-				headers: {
-					"content-type": "application/json",
-				},
-			});
-		}
-
-		if (
-			url ===
-			"https://gmail.googleapis.com/gmail/v1/users/me/messages?labelIds=INBOX&q=category%3Aprimary&maxResults=500"
-		) {
-			return new Response(
-				JSON.stringify({
-					messages: [{ id: "m1" }],
-					nextPageToken: "page-2",
-				}),
-				{
-					status: 200,
-					headers: {
-						"content-type": "application/json",
-					},
-				},
-			);
-		}
-
-		if (
-			url ===
-			"https://gmail.googleapis.com/gmail/v1/users/me/messages?pageToken=page-2&labelIds=INBOX&q=category%3Aprimary&maxResults=500"
-		) {
-			throw new Error("unexpected second page fetch");
-		}
-
-		if (
-			url ===
-			"https://gmail.googleapis.com/gmail/v1/users/me/messages/m1?format=full"
-		) {
-			return new Response(JSON.stringify(createMessage("m1")), {
-				status: 200,
-				headers: {
-					"content-type": "application/json",
-				},
-			});
-		}
-
-		throw new Error(`unexpected url: ${url}`);
-	}) as typeof fetch;
-
-	try {
-		const connector = createGmailConnector();
-		const request = createRequest(createAdapter());
-		if (request.integration.connectorId !== "gmail") {
-			throw new Error("expected gmail integration");
-		}
-		request.integration.config.initialSyncLimit = 1;
-
-		await connector.sync(request);
-	} finally {
-		globalThis.fetch = originalFetch;
-	}
-
-	expect(fetchCalls).toContain(
-		"https://gmail.googleapis.com/gmail/v1/users/me/messages?labelIds=INBOX&q=category%3Aprimary&maxResults=500",
-	);
-	expect(
-		fetchCalls.filter((url) =>
-			url.startsWith(
-				"https://gmail.googleapis.com/gmail/v1/users/me/messages?",
-			),
-		),
-	).toHaveLength(1);
-});
-
 test("invalid history id falls back to a full scoped rescan", async () => {
 	let historyCalls = 0;
 	let inboxCalls = 0;
@@ -835,7 +681,7 @@ test("invalid history id falls back to a full scoped rescan", async () => {
 		"Gmail history cursor expired. Falling back to a full scoped rescan.",
 	);
 	expect(writes).toContain(
-		"Gmail progress: streaming initial sync limit=5000 concurrency=10",
+		"Gmail progress: streaming inbox scan concurrency=10",
 	);
 });
 
@@ -874,7 +720,7 @@ test("history fallback publishes structured scanning progress", async () => {
 	expect(progressUpdates).toContainEqual({
 		mode: "indeterminate",
 		phase: "Scanning inbox",
-		detail: "processed 1 | limit 5000 | concurrency 10",
+		detail: "processed 1 | concurrency 10",
 		completed: null,
 		total: null,
 		unit: "messages",

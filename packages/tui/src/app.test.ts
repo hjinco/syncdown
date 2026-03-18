@@ -2194,7 +2194,7 @@ test("sync dashboard renders raw log and compact actions at 80x24", async () => 
 					progress: {
 						mode: "indeterminate",
 						phase: "Scanning inbox",
-						detail: "processed 12 | limit 5000 | concurrency 10",
+						detail: "processed 12 | concurrency 10",
 						completed: null,
 						total: null,
 						unit: "messages",
@@ -2205,8 +2205,7 @@ test("sync dashboard renders raw log and compact actions at 80x24", async () => 
 				{
 					timestamp: "2026-03-17T00:08:00.000Z",
 					level: "info",
-					message:
-						"Gmail progress: streaming initial sync limit=5000 concurrency=10",
+					message: "Gmail progress: streaming inbox scan concurrency=10",
 					connectorId: "gmail",
 					integrationId: GMAIL_INTEGRATION_ID,
 					integrationLabel: "Gmail",
@@ -2241,9 +2240,81 @@ test("sync dashboard renders raw log and compact actions at 80x24", async () => 
 
 	expect(frame).toContain("Gmail [RUNNING] Scanning inbox");
 	expect(frame).toContain("Raw log");
-	expect(frame).toContain("processed 12 | limit 5000");
+	expect(frame).toContain("processed 12 | concurrency 10");
 	expect(frame).toContain("Stop sync");
 	expect(frame).not.toContain("Stop the current sync");
+
+	tui.destroy();
+});
+
+test("sync dashboard summarizes gmail inbox scan activity in compact mode", async () => {
+	const { renderer, renderOnce, captureCharFrame } = await createTestRenderer({
+		width: 80,
+		height: 24,
+	});
+	const session = createSessionStub(
+		createSyncSnapshot({
+			status: "running",
+			integrations: [
+				{
+					id: GMAIL_INTEGRATION_ID,
+					connectorId: "gmail",
+					connectionId: "google-account-default",
+					label: "Gmail",
+					enabled: true,
+					interval: "15m",
+					status: "running",
+					running: true,
+					queuedImmediateRun: false,
+					lastStartedAt: "2026-03-17T00:00:00.000Z",
+					lastFinishedAt: null,
+					lastSuccessAt: "2026-03-16T23:30:00.000Z",
+					lastError: null,
+					lastDocumentsWritten: 12,
+					nextRunAt: null,
+					progress: null,
+				},
+			],
+			logs: [
+				{
+					timestamp: "2026-03-17T00:08:00.000Z",
+					level: "info",
+					message: "Gmail progress: streaming inbox scan concurrency=10",
+					connectorId: "gmail",
+					integrationId: GMAIL_INTEGRATION_ID,
+					integrationLabel: "Gmail",
+				},
+			],
+		}),
+	);
+	const tui = await ConfigTuiApp.create(
+		{
+			app: createApp(),
+			io: createIo(),
+			secrets: createSecretsStore().store,
+			session: session.session,
+		},
+		createPaths(),
+		createDraftState(createConfig(), {
+			notionTokenStored: true,
+			googleClientIdStored: true,
+			googleClientSecretStored: true,
+			googleRefreshTokenStored: true,
+		}),
+		renderer,
+		createDefaultAuthService(),
+	);
+
+	(tui as any).ui.routes = [
+		createSyncDashboardRoute(session.session.getSnapshot()),
+	];
+	(tui as any).refreshView();
+	await renderOnce();
+	const frame = captureCharFrame();
+
+	expect(frame).toContain("Gmail [RUNNING] Scanning inbox for the first sync");
+	expect(frame).toContain("Recent activity");
+	expect(frame).toContain("Scanning inbox for the first sync");
 
 	tui.destroy();
 });

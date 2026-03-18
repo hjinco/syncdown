@@ -79,7 +79,6 @@ export function createDefaultIntegrations(): IntegrationConfig[] {
 			enabled: false,
 			interval: "1h",
 			config: {
-				initialSyncLimit: 5000,
 				fetchConcurrency: 10,
 				syncFilter: "primary",
 			},
@@ -411,10 +410,6 @@ export function normalizeConfig(
 							enabled: candidate.enabled,
 							interval: candidate.interval,
 							config: {
-								initialSyncLimit:
-									typeof settings?.initialSyncLimit === "number"
-										? settings.initialSyncLimit
-										: 5000,
 								fetchConcurrency:
 									typeof settings?.fetchConcurrency === "number"
 										? settings.fetchConcurrency

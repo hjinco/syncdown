@@ -458,7 +458,6 @@ test("status prints gmail performance settings", async () => {
 	if (gmail.connectorId !== "gmail") {
 		throw new Error("expected gmail integration");
 	}
-	gmail.config.initialSyncLimit = 2500;
 	gmail.config.fetchConcurrency = 4;
 	gmail.config.syncFilter = "primary-important";
 	const { app } = createAppStub({
@@ -476,64 +475,10 @@ test("status prints gmail performance settings", async () => {
 		}),
 	);
 
-	expect(writes.some((line) => line.includes("initial limit=2500"))).toBe(true);
 	expect(writes.some((line) => line.includes("concurrency=4"))).toBe(true);
 	expect(writes.some((line) => line.includes("filter=primary-important"))).toBe(
 		true,
 	);
-});
-
-test("status prints unlimited gmail initial sync limit when set to zero", async () => {
-	const { io, writes } = createIoCapture();
-	const baseSnapshot = createSnapshot();
-	const config = structuredClone(baseSnapshot.config);
-	const gmail = getDefaultIntegration(config, "gmail");
-	if (gmail.connectorId !== "gmail") {
-		throw new Error("expected gmail integration");
-	}
-	gmail.config.initialSyncLimit = 0;
-	const { app } = createAppStub({
-		inspect: async () => ({
-			...baseSnapshot,
-			config,
-		}),
-	});
-
-	await withTty(false, () =>
-		runTestCli(["syncdown", "syncdown", "status"], {
-			app,
-			io,
-			secrets: createSecretsStub(),
-		}),
-	);
-
-	expect(writes.some((line) => line.includes("initial limit=all"))).toBe(true);
-});
-
-test("config set stores zero gmail.initialSyncLimit in the config file", async () => {
-	const { io, writes, errors } = createIoCapture();
-	const { app } = createAppStub();
-
-	await withTempCliPaths(async (paths) => {
-		const exitCode = await runTestCli(
-			["syncdown", "syncdown", "config", "set", "gmail.initialSyncLimit", "0"],
-			{
-				app,
-				io,
-				secrets: createSecretsStub(),
-			},
-		);
-
-		expect(exitCode).toBe(EXIT_CODES.OK);
-		expect(errors).toEqual([]);
-		expect(writes).toContain("Set gmail.initialSyncLimit=0");
-		const config = await readConfig(paths);
-		const gmail = getDefaultIntegration(config, "gmail");
-		if (gmail.connectorId !== "gmail") {
-			throw new Error("expected gmail integration");
-		}
-		expect(gmail.config.initialSyncLimit).toBe(0);
-	});
 });
 
 test("config set stores gmail.syncFilter in the config file", async () => {
