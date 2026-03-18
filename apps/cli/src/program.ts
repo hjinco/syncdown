@@ -5,6 +5,7 @@ import { createNotionConnector } from "@syncdown/connector-notion";
 import type {
 	AppIo,
 	ApplyUpdateResult,
+	ConnectorId,
 	GmailSyncFilter,
 	RunOptions,
 	SelfUpdater,
@@ -52,10 +53,17 @@ function supportsAppleNotes(
 
 function getSupportedRunConnectorIds(
 	platform: NodeJS.Platform = process.platform,
-): string[] {
+): ConnectorId[] {
 	return supportsAppleNotes(platform)
 		? ["notion", "gmail", "google-calendar", "apple-notes"]
 		: ["notion", "gmail", "google-calendar"];
+}
+
+function isSupportedRunConnectorId(
+	value: string,
+	platform: NodeJS.Platform = process.platform,
+): value is ConnectorId {
+	return getSupportedRunConnectorIds(platform).includes(value as ConnectorId);
 }
 
 function getConfigSetKeys(
@@ -275,7 +283,7 @@ function parseRunOptions(args: string[], io: AppIo): RunOptions | null {
 		if (arg === "--connector") {
 			const value = args[index + 1];
 			const validConnectors = getSupportedRunConnectorIds();
-			if (!value || !validConnectors.includes(value)) {
+			if (!value || !isSupportedRunConnectorId(value)) {
 				io.error(
 					value
 						? `--connector must be one of: ${validConnectors.join(", ")}`
