@@ -165,10 +165,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-14
+          - runner: macos-15
             target: darwin-arm64
             artifact_dir: darwin-arm64
-          - runner: macos-13
+          - runner: macos-15-intel
             target: darwin-x64
             artifact_dir: darwin-x64
           - runner: ubuntu-latest
