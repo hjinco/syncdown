@@ -737,10 +737,7 @@ export class ConfigTuiApp {
 				this.refreshView();
 				await this.refreshGoogleCalendarSelection(calendarRoute);
 			} else if (selection === "enable" && route.connector === "gmail") {
-				const hasScopes = await this.ensureGoogleScopesForConnector(
-					"gmail",
-					route.connector,
-				);
+				const hasScopes = await this.ensureGoogleScopesForConnector("gmail");
 				if (!hasScopes) {
 					return;
 				}
@@ -759,10 +756,8 @@ export class ConfigTuiApp {
 				selection === "enable" &&
 				route.connector === "google-calendar"
 			) {
-				const hasScopes = await this.ensureGoogleScopesForConnector(
-					"google-calendar",
-					route.connector,
-				);
+				const hasScopes =
+					await this.ensureGoogleScopesForConnector("google-calendar");
 				if (!hasScopes) {
 					return;
 				}
@@ -1593,11 +1588,10 @@ export class ConfigTuiApp {
 	}
 
 	private async ensureGoogleScopesForConnector(
-		connectorId: "gmail" | "google-calendar",
-		connectorTarget: "gmail" | "google-calendar",
+		connector: "gmail" | "google-calendar",
 	): Promise<boolean> {
 		const credentials = await this.getCurrentGoogleCredentials();
-		const requiredScopes = await this.getRequiredGoogleScopes(connectorId);
+		const requiredScopes = await this.getRequiredGoogleScopes(connector);
 		if (credentials) {
 			try {
 				await this.authService.validateGoogleCredentials(
@@ -1623,7 +1617,7 @@ export class ConfigTuiApp {
 			});
 		}
 
-		const authRoute = createConnectorAuthRoute(connectorTarget, "google-oauth");
+		const authRoute = createConnectorAuthRoute(connector, "google-oauth");
 		pushRoute(this.ui, authRoute);
 		const oauthAppCredentials =
 			await this.getCurrentGoogleOAuthAppCredentials();
