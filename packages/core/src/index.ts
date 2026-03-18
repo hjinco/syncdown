@@ -9,6 +9,7 @@ export {
 } from "./config.js";
 export {
 	createDefaultConfig,
+	DEFAULT_APPLE_NOTES_CONNECTION_ID,
 	DEFAULT_GOOGLE_CONNECTION_ID,
 	DEFAULT_GOOGLE_OAUTH_APP_ID,
 	DEFAULT_NOTION_OAUTH_APP_ID,
@@ -20,6 +21,7 @@ export {
 	getDefaultConnection,
 	getDefaultConnectionId,
 	getDefaultIntegration,
+	isAppleNotesIntegration,
 	isCalendarIntegration,
 	isGmailIntegration,
 	isGoogleAccountConnection,
@@ -72,6 +74,9 @@ export {
 } from "./notion-auth.js";
 export type {
 	AppIo,
+	AppleNotesIntegrationConfig,
+	AppleNotesIntegrationSettings,
+	AppleNotesLocalConnectionConfig,
 	ApplyUpdateResult,
 	AppPaths,
 	AppSnapshot,

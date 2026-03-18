@@ -143,6 +143,19 @@ async function resolveConnectionAuth(
 		};
 	}
 
+	if (integration.connectorId === "apple-notes") {
+		if (connection.kind !== "apple-notes-local") {
+			throw new Error(
+				`Integration ${integration.id} requires an apple-notes-local connection`,
+			);
+		}
+
+		return {
+			connection,
+			resolvedAuth: null,
+		};
+	}
+
 	if (connection.kind === "notion-token") {
 		const token = await services.secrets.getSecret(
 			getNotionConnectionSecretName(connection.id),
@@ -271,6 +284,10 @@ export async function hasIntegrationStoredCredentials(
 			oauthAppId: connection.oauthAppId,
 			connectionId: connection.id,
 		});
+	}
+
+	if (integration.connectorId === "apple-notes") {
+		return process.platform === "darwin";
 	}
 
 	if (connection.kind === "notion-token") {

@@ -4,6 +4,11 @@ import type { SourceSnapshot } from "@syncdown/core";
 
 import { slugifySegment } from "./strings.js";
 
+function getAppleNotesFileIdentifier(noteId: string): string {
+	const withoutScheme = noteId.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "");
+	return slugifySegment(withoutScheme);
+}
+
 function getCalendarBucketDate(document: SourceSnapshot): Date | null {
 	const value =
 		document.metadata.calendarStartAt ?? document.metadata.createdAt;
@@ -23,11 +28,35 @@ function getGmailAccountSegment(document: SourceSnapshot): string {
 	);
 }
 
+function getAppleNotesFolderSegments(document: SourceSnapshot): string[] {
+	const rawPath =
+		document.pathHint.appleNotesFolderPath ??
+		document.metadata.appleNotesFolderPath;
+	if (Array.isArray(rawPath) && rawPath.length > 0) {
+		return rawPath.map((segment) => slugifySegment(String(segment)));
+	}
+
+	return [
+		slugifySegment(
+			document.pathHint.appleNotesFolder ??
+				document.metadata.appleNotesFolder ??
+				"root",
+		),
+	];
+}
+
 function getFileIdentifier(document: SourceSnapshot): string {
 	if (document.pathHint.kind === "calendar-event") {
 		const eventId = document.metadata.calendarEventId;
 		if (typeof eventId === "string" && eventId.trim().length > 0) {
 			return eventId;
+		}
+	}
+
+	if (document.pathHint.kind === "note") {
+		const noteId = document.metadata.appleNotesNoteId;
+		if (typeof noteId === "string" && noteId.trim().length > 0) {
+			return getAppleNotesFileIdentifier(noteId);
 		}
 	}
 
@@ -71,6 +100,18 @@ export function buildRelativePath(document: SourceSnapshot): string {
 		);
 
 		return path.join(document.connectorId, calendarName, year, month, fileName);
+	}
+
+	if (document.pathHint.kind === "note") {
+		const accountName = slugifySegment(
+			document.pathHint.appleNotesAccount ?? "unknown-account",
+		);
+		return path.join(
+			document.connectorId,
+			accountName,
+			...getAppleNotesFolderSegments(document),
+			fileName,
+		);
 	}
 
 	if (document.pathHint.kind === "database" && document.pathHint.databaseName) {

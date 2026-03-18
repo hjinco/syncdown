@@ -712,7 +712,8 @@ export class ConfigTuiApp {
 			if (
 				selection === "notion" ||
 				selection === "gmail" ||
-				selection === "google-calendar"
+				selection === "google-calendar" ||
+				selection === "apple-notes"
 			) {
 				pushRoute(this.ui, createConnectorDetailsRoute(selection));
 			}
@@ -762,6 +763,17 @@ export class ConfigTuiApp {
 					setNotice(this.ui, {
 						kind: "success",
 						text: "Gmail enabled.",
+					});
+				}
+			} else if (selection === "enable" && route.connector === "apple-notes") {
+				const saved = await this.persistDraftMutation(
+					(draft) => setConnectorEnabled(draft, "apple-notes", true),
+					"Failed to enable Apple Notes.",
+				);
+				if (saved) {
+					setNotice(this.ui, {
+						kind: "success",
+						text: "Apple Notes enabled.",
 					});
 				}
 			} else if (
@@ -848,7 +860,9 @@ export class ConfigTuiApp {
 						? "Notion"
 						: connector === "gmail"
 							? "Gmail"
-							: "Google Calendar";
+							: connector === "google-calendar"
+								? "Google Calendar"
+								: "Apple Notes";
 			const saved = await this.persistDraftMutation((draft) => {
 				if (route.mode === "provider") {
 					stageProviderDisconnect(draft, route.provider ?? "google");
@@ -875,7 +889,9 @@ export class ConfigTuiApp {
 								? "Notion disconnected."
 								: connector === "gmail"
 									? "Gmail disabled."
-									: "Google Calendar disabled.",
+									: connector === "google-calendar"
+										? "Google Calendar disabled."
+										: "Apple Notes disabled.",
 				});
 				this.refreshView();
 			}
@@ -912,7 +928,8 @@ export class ConfigTuiApp {
 			if (
 				selection === "notion" ||
 				selection === "gmail" ||
-				selection === "google-calendar"
+				selection === "google-calendar" ||
+				selection === "apple-notes"
 			) {
 				pushRoute(this.ui, createIntervalRoute(selection));
 			}
@@ -929,13 +946,13 @@ export class ConfigTuiApp {
 			const connector = route.connector;
 			const saved = await this.persistDraftMutation(
 				(draft) => setSyncInterval(draft, connector, interval),
-				`Failed to save the ${connector === "notion" ? "Notion" : connector === "gmail" ? "Gmail" : "Google Calendar"} interval.`,
+				`Failed to save the ${connector === "notion" ? "Notion" : connector === "gmail" ? "Gmail" : connector === "google-calendar" ? "Google Calendar" : "Apple Notes"} interval.`,
 			);
 			if (saved) {
 				popRoute(this.ui);
 				setNotice(this.ui, {
 					kind: "success",
-					text: `${connector === "notion" ? "Notion" : connector === "gmail" ? "Gmail" : "Google Calendar"} interval saved.`,
+					text: `${connector === "notion" ? "Notion" : connector === "gmail" ? "Gmail" : connector === "google-calendar" ? "Google Calendar" : "Apple Notes"} interval saved.`,
 				});
 				this.refreshView();
 			}
@@ -1268,6 +1285,21 @@ export class ConfigTuiApp {
 					{ resetState: true },
 				);
 				this.setSyncRunNotice("Google Calendar full resync completed.");
+			} else if (selection === "runAppleNotes") {
+				await this.request.session.runNow({
+					kind: "integration",
+					integrationId: getDraftIntegration(this.draft, "apple-notes").id,
+				});
+				this.setSyncRunNotice("Apple Notes run completed.");
+			} else if (selection === "runAppleNotesReset") {
+				await this.request.session.runNow(
+					{
+						kind: "integration",
+						integrationId: getDraftIntegration(this.draft, "apple-notes").id,
+					},
+					{ resetState: true },
+				);
+				this.setSyncRunNotice("Apple Notes full resync completed.");
 			}
 		} catch (error) {
 			setNotice(this.ui, {

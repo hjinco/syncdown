@@ -460,6 +460,26 @@ test("status prints google calendar selection count", async () => {
 	);
 });
 
+test("status hides apple notes when the connector is unavailable", async () => {
+	const { io, writes } = createIoCapture();
+	const { app } = createAppStub({
+		inspect: async () => createSnapshot(),
+	});
+
+	await withTty(false, () =>
+		runTestCli(["syncdown", "syncdown", "status"], {
+			app,
+			io,
+			secrets: createSecretsStub(),
+		}),
+	);
+
+	expect(writes.some((line) => line.startsWith("apple-notes:"))).toBe(false);
+	expect(writes.some((line) => line.includes("appleNotes.enabled"))).toBe(
+		false,
+	);
+});
+
 test("status prints gmail performance settings", async () => {
 	const { io, writes } = createIoCapture();
 	const baseSnapshot = createSnapshot();

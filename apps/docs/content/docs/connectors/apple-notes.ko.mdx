@@ -1,0 +1,55 @@
+---
+title: Apple Notes
+description: 로컬 Notes 앱에서 무엇을 동기화하는지와 Apple Notes 커넥터 설정 방법을 설명합니다.
+---
+
+# Apple Notes
+
+Apple Notes 커넥터는 로컬 Notes 앱에서 읽을 수 있는 노트를 Markdown으로 동기화합니다.
+
+## 플랫폼 지원
+
+현재 Apple Notes 동기화는 macOS에서만 지원합니다.
+
+`syncdown`은 실행 중인 같은 Mac의 Notes 앱에 로컬로 접근할 수 있어야 합니다. macOS가 접근을 막으면 커넥터를 다시 실행한 뒤 권한 프롬프트를 승인하거나 현재 터미널/앱에 접근 권한을 부여하세요.
+
+## Headless 설정
+
+```sh
+syncdown config set appleNotes.enabled true
+syncdown config set appleNotes.interval 1h
+```
+
+그다음 다음 명령을 실행합니다.
+
+```sh
+syncdown run --connector apple-notes
+```
+
+## 무엇이 동기화되나요
+
+현재 커넥터는 다음을 동기화합니다.
+
+- 노트 제목
+- Markdown 텍스트로 렌더링한 본문
+- 생성/수정 시각
+- 계정 이름
+- 폴더 경로
+
+현재는 첨부파일을 추출하거나 복사하지 않습니다.
+
+## 출력 경로
+
+Markdown 파일은 계정과 폴더 경로 아래에 기록됩니다.
+
+```text
+apple-notes/<account>/<folder>/note-title-<note-id>.md
+```
+
+중첩 폴더 구조도 출력 경로에 그대로 반영합니다.
+
+## 현재 제한 사항
+
+- macOS 전용
+- 로컬 Notes 접근 권한 필요
+- 잠긴 노트나 읽을 수 없는 노트는 warning과 함께 건너뜀

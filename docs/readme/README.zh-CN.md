@@ -57,11 +57,12 @@ syncdown
 
 ### 3. 连接数据源
 
-打开 **Connectors**，配置一个或多个支持的数据源：
+打开 **Connectors**，配置你需要的数据源：
 
 - **Notion**：同步你已授权 Notion 连接访问的页面和数据库
 - **Gmail**：通过 Google OAuth 同步 `Primary` 收件箱
 - **Google Calendar**：通过共享 Google OAuth 账号同步所选日历
+- **Apple Notes**：同步 macOS 上的本地笔记
 
 ### 4. 执行第一次同步
 
@@ -71,6 +72,7 @@ syncdown
 - **Run Notion**
 - **Run Gmail**
 - **Run Google Calendar**
+- **Run Apple Notes**
 
 你也可以通过 CLI 完成最小化的无界面配置：
 
@@ -117,6 +119,8 @@ syncdown doctor
 notion/pages/project-plan-<source-id>.md
 notion/databases/tasks/task-item-<source-id>.md
 gmail/account-example-com/2026/03/weekly-update-<message-id>.md
+google-calendar/primary/2026/03/team-sync-<event-id>.md
+apple-notes/personal-icloud/scratchpad/daily-notes-note-id-123.md
 ```
 
 渲染后的 Markdown 会包含 YAML frontmatter，其中包括 connector 元数据和各数据源特有的字段，因此同步后的数据既可作为可读正文使用，也可作为结构化元数据使用。
@@ -166,21 +170,25 @@ syncdown reset --yes
 
 - **Notion**：token 或 OAuth 认证
 - **Gmail**：Google OAuth 和增量 inbox 同步
+- **Google Calendar**：共享 Google OAuth 和所选日历的增量同步
+- **Apple Notes**：macOS 本地访问
 
 各 connector 的配置方式、支持行为和当前限制见单独文档：
 
-- [Notion connector](./apps/docs/content/docs/connectors/notion.mdx)
-- [Gmail connector](./apps/docs/content/docs/connectors/gmail.mdx)
+- [Notion connector](https://syncdown.dev/docs/connectors/notion)
+- [Gmail connector](https://syncdown.dev/docs/connectors/gmail)
+- [Google Calendar connector](https://syncdown.dev/docs/connectors/google-calendar)
+- [Apple Notes connector](https://syncdown.dev/docs/connectors/apple-notes)
 
 ## Docs
 
 更详细的指南请参考：
 
-- [Getting Started](./apps/docs/content/docs/getting-started.mdx)
-- [Configuration](./apps/docs/content/docs/configuration.mdx)
-- [CLI reference](./apps/docs/content/docs/cli.mdx)
+- [Getting Started](https://syncdown.dev/docs/getting-started)
+- [Configuration](https://syncdown.dev/docs/configuration)
+- [CLI reference](https://syncdown.dev/docs/cli)
 
-详细文档内容目前仍以英文为主。简体中文 docs UI 路由已经可用，在尚未提供翻译页面的地方，会回退到英文内容。
+详细文档内容目前仍以英文为主。英语、韩语、日语和简体中文的 docs 路由已经可用，尚未提供翻译的页面会回退到英文内容。
 
 ## Developing syncdown
 

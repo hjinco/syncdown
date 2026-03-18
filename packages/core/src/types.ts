@@ -11,11 +11,16 @@ export type ExitCode = (typeof EXIT_CODES)[keyof typeof EXIT_CODES];
 
 export type SyncIntervalPreset = "5m" | "15m" | "1h" | "6h" | "24h";
 export type ProviderId = "google" | "notion";
-export type ConnectorId = "notion" | "gmail" | "google-calendar";
+export type ConnectorId =
+	| "notion"
+	| "gmail"
+	| "google-calendar"
+	| "apple-notes";
 export type ConnectionKind =
 	| "google-account"
 	| "notion-token"
-	| "notion-oauth-account";
+	| "notion-oauth-account"
+	| "apple-notes-local";
 
 export interface ProviderOAuthSetupMethodDescriptor {
 	kind: "provider-oauth";
@@ -64,10 +69,15 @@ export interface NotionOAuthConnectionConfig extends BaseConnectionConfig {
 	ownerUserName?: string;
 }
 
+export interface AppleNotesLocalConnectionConfig extends BaseConnectionConfig {
+	kind: "apple-notes-local";
+}
+
 export type ConnectionConfig =
 	| GoogleAccountConnectionConfig
 	| NotionTokenConnectionConfig
-	| NotionOAuthConnectionConfig;
+	| NotionOAuthConnectionConfig
+	| AppleNotesLocalConnectionConfig;
 
 export type GmailSyncFilter = "primary" | "primary-important";
 
@@ -81,6 +91,7 @@ export interface CalendarIntegrationSettings {
 }
 
 export type NotionIntegrationSettings = Record<string, never>;
+export type AppleNotesIntegrationSettings = Record<string, never>;
 
 export interface BaseIntegrationConfig<TConnectorId extends string, TSettings> {
 	id: string;
@@ -104,10 +115,15 @@ export type CalendarIntegrationConfig = BaseIntegrationConfig<
 	"google-calendar",
 	CalendarIntegrationSettings
 >;
+export type AppleNotesIntegrationConfig = BaseIntegrationConfig<
+	"apple-notes",
+	AppleNotesIntegrationSettings
+>;
 export type IntegrationConfig =
 	| NotionIntegrationConfig
 	| GmailIntegrationConfig
-	| CalendarIntegrationConfig;
+	| CalendarIntegrationConfig
+	| AppleNotesIntegrationConfig;
 
 export interface SyncdownConfig {
 	outputDir?: string;
@@ -137,10 +153,13 @@ export interface HealthCheck {
 }
 
 export interface DocumentPathHint {
-	kind: "page" | "database" | "message" | "calendar-event";
+	kind: "page" | "database" | "message" | "calendar-event" | "note";
 	databaseName?: string;
 	gmailAccountEmail?: string;
 	calendarName?: string;
+	appleNotesAccount?: string;
+	appleNotesFolder?: string;
+	appleNotesFolderPath?: string[];
 }
 
 export interface SourceMetadata extends Record<string, unknown> {
@@ -169,6 +188,9 @@ export interface SourceMetadata extends Record<string, unknown> {
 	calendarOrganizer?: string;
 	calendarAttendees?: string[];
 	calendarRecurrence?: string[];
+	appleNotesNoteId?: string;
+	appleNotesFolder?: string;
+	appleNotesFolderPath?: string[];
 }
 
 export interface SourceSnapshot {

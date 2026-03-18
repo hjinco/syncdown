@@ -56,11 +56,12 @@ TUI에서 **Output**을 열고 Markdown 출력 위치를 선택합니다.
 
 ### 3. 소스 연결
 
-**Connectors**를 열고 지원되는 소스를 하나 이상 설정합니다.
+**Connectors**를 열고 원하는 소스를 설정합니다.
 
 - **Notion**: 사용자가 Notion 연결에 접근을 허용한 페이지와 데이터베이스 동기화
 - **Gmail**: Google OAuth 기반 `Primary` 받은편지함 동기화
 - **Google Calendar**: 공유 Google OAuth 계정으로 선택한 캘린더 동기화
+- **Apple Notes**: macOS의 로컬 노트 동기화
 
 ### 4. 첫 동기화 실행
 
@@ -70,6 +71,7 @@ TUI 홈 화면에서 **Sync**를 열고 다음 중 하나를 실행합니다.
 - **Run Notion**
 - **Run Gmail**
 - **Run Google Calendar**
+- **Run Apple Notes**
 
 최소한의 헤드리스 설정은 CLI로도 가능합니다.
 
@@ -116,6 +118,8 @@ syncdown doctor
 notion/pages/project-plan-<source-id>.md
 notion/databases/tasks/task-item-<source-id>.md
 gmail/account-example-com/2026/03/weekly-update-<message-id>.md
+google-calendar/primary/2026/03/team-sync-<event-id>.md
+apple-notes/personal-icloud/scratchpad/daily-notes-note-id-123.md
 ```
 
 렌더링된 Markdown에는 커넥터 메타데이터와 소스별 필드가 YAML frontmatter로 함께 들어가므로, 동기화된 데이터는 읽기용 본문과 구조화된 메타데이터 둘 다로 활용할 수 있습니다.
@@ -165,21 +169,25 @@ syncdown reset --yes
 
 - **Notion**: token 또는 OAuth 인증
 - **Gmail**: Google OAuth 및 증분 inbox 동기화
+- **Google Calendar**: 공유 Google OAuth 및 선택한 캘린더 증분 동기화
+- **Apple Notes**: macOS 로컬 접근
 
 커넥터별 설정 방법, 지원 동작, 현재 제약은 별도 문서에 정리되어 있습니다.
 
-- [Notion connector](./apps/docs/content/docs/connectors/notion.mdx)
-- [Gmail connector](./apps/docs/content/docs/connectors/gmail.mdx)
+- [Notion connector](https://syncdown.dev/docs/connectors/notion)
+- [Gmail connector](https://syncdown.dev/docs/connectors/gmail)
+- [Google Calendar connector](https://syncdown.dev/docs/connectors/google-calendar)
+- [Apple Notes connector](https://syncdown.dev/docs/connectors/apple-notes)
 
 ## Docs
 
 더 자세한 가이드는 다음 문서를 참고하세요.
 
-- [Getting Started](./apps/docs/content/docs/getting-started.mdx)
-- [Configuration](./apps/docs/content/docs/configuration.mdx)
-- [CLI reference](./apps/docs/content/docs/cli.mdx)
+- [Getting Started](https://syncdown.dev/docs/getting-started)
+- [Configuration](https://syncdown.dev/docs/configuration)
+- [CLI reference](https://syncdown.dev/docs/cli)
 
-문서 앱은 현재 영어 콘텐츠를 기본으로 사용합니다. 한국어 로케일 라우트와 UI는 이미 지원되며, 일부 상세 페이지 콘텐츠는 번역본이 추가되기 전까지 영어 원문을 그대로 사용할 수 있습니다.
+문서 앱은 현재 영어 콘텐츠를 기본으로 사용합니다. 영어, 한국어, 일본어, 중국어 간 로케일 라우트가 준비되어 있으며, 아직 번역되지 않은 페이지는 영어 원문으로 폴백될 수 있습니다.
 
 ## Developing syncdown
 

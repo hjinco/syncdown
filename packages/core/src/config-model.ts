@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type {
+	AppleNotesIntegrationConfig,
 	CalendarIntegrationConfig,
 	ConnectionConfig,
 	ConnectionSummary,
@@ -22,6 +23,7 @@ export const DEFAULT_GOOGLE_CONNECTION_ID = "google-account-default";
 export const DEFAULT_NOTION_OAUTH_APP_ID = "notion-oauth-app-default";
 export const DEFAULT_NOTION_TOKEN_CONNECTION_ID = "notion-token-default";
 export const DEFAULT_NOTION_OAUTH_CONNECTION_ID = "notion-oauth-default";
+export const DEFAULT_APPLE_NOTES_CONNECTION_ID = "apple-notes-local-default";
 
 export function createDefaultOAuthApps(): OAuthAppConfig[] {
 	return [
@@ -56,6 +58,11 @@ export function createDefaultConnections(): ConnectionConfig[] {
 			kind: "notion-oauth-account",
 			label: "Default Notion OAuth Connection",
 			oauthAppId: DEFAULT_NOTION_OAUTH_APP_ID,
+		},
+		{
+			id: DEFAULT_APPLE_NOTES_CONNECTION_ID,
+			kind: "apple-notes-local",
+			label: "Default Apple Notes Connection",
 		},
 	];
 }
@@ -93,6 +100,15 @@ export function createDefaultIntegrations(): IntegrationConfig[] {
 			config: {
 				selectedCalendarIds: [],
 			},
+		},
+		{
+			id: randomUUID(),
+			connectorId: "apple-notes",
+			connectionId: DEFAULT_APPLE_NOTES_CONNECTION_ID,
+			label: "Apple Notes",
+			enabled: false,
+			interval: "1h",
+			config: {},
 		},
 	];
 }
@@ -155,7 +171,9 @@ export function getDefaultIntegration(
 export function getDefaultConnectionId(connectorId: ConnectorId): string {
 	return connectorId === "gmail" || connectorId === "google-calendar"
 		? DEFAULT_GOOGLE_CONNECTION_ID
-		: DEFAULT_NOTION_TOKEN_CONNECTION_ID;
+		: connectorId === "apple-notes"
+			? DEFAULT_APPLE_NOTES_CONNECTION_ID
+			: DEFAULT_NOTION_TOKEN_CONNECTION_ID;
 }
 
 export function getDefaultConnection(
@@ -200,6 +218,12 @@ export function isCalendarIntegration(
 	integration: IntegrationConfig,
 ): integration is CalendarIntegrationConfig {
 	return integration.connectorId === "google-calendar";
+}
+
+export function isAppleNotesIntegration(
+	integration: IntegrationConfig,
+): integration is AppleNotesIntegrationConfig {
+	return integration.connectorId === "apple-notes";
 }
 
 export function toConnectorDefinitions(
@@ -319,6 +343,16 @@ export function normalizeConfig(
 									.workspaceName === "string"
 									? (candidate as { workspaceName?: string }).workspaceName
 									: undefined,
+						},
+					];
+				}
+
+				if (candidate.kind === "apple-notes-local") {
+					return [
+						{
+							id: candidate.id,
+							kind: "apple-notes-local",
+							label: candidate.label,
 						},
 					];
 				}
@@ -449,6 +483,20 @@ export function normalizeConfig(
 										]
 									: [],
 							},
+						},
+					];
+				}
+
+				if (candidate.connectorId === "apple-notes") {
+					return [
+						{
+							id: candidate.id,
+							connectorId: "apple-notes",
+							connectionId: candidate.connectionId,
+							label: candidate.label,
+							enabled: candidate.enabled,
+							interval: candidate.interval,
+							config: {},
 						},
 					];
 				}

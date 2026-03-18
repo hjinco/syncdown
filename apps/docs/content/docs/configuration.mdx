@@ -28,6 +28,8 @@ syncdown run
 
 For Gmail, Google Calendar, or Notion OAuth, use the connector-specific secret keys shown below.
 
+Apple Notes is different: on macOS you can enable it without storing secrets.
+
 ## Config model
 
 The persisted config contains:
@@ -57,6 +59,9 @@ syncdown config set gmail.fetchConcurrency 10
 syncdown config set googleCalendar.enabled true
 syncdown config set googleCalendar.interval 1h
 syncdown config set googleCalendar.selectedCalendarIds primary,work@example.com
+
+syncdown config set appleNotes.enabled true
+syncdown config set appleNotes.interval 1h
 ```
 
 Read secret values from standard input:
@@ -119,6 +124,8 @@ Plain config values:
 - `googleCalendar.enabled`
 - `googleCalendar.interval`
 - `googleCalendar.selectedCalendarIds`
+- `appleNotes.enabled` on macOS
+- `appleNotes.interval` on macOS
 
 Secret-backed values:
 
@@ -137,6 +144,7 @@ Connector intervals are stored per integration:
 - `notion.interval`
 - `gmail.interval`
 - `googleCalendar.interval`
+- `appleNotes.interval` on macOS
 
 These intervals are used by the TUI sync dashboard when it starts **per-integration watch** mode.
 

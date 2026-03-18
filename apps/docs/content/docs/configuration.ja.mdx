@@ -28,6 +28,8 @@ syncdown run
 
 Gmail、Google Calendar、または Notion OAuth を使う場合は、以下のコネクタ別シークレットキーを使用してください。
 
+Apple Notes は別です。macOS ではシークレットを保存せずに有効化できます。
+
 ## 設定モデル
 
 永続化される設定には次が含まれます。
@@ -57,6 +59,9 @@ syncdown config set gmail.fetchConcurrency 10
 syncdown config set googleCalendar.enabled true
 syncdown config set googleCalendar.interval 1h
 syncdown config set googleCalendar.selectedCalendarIds primary,work@example.com
+
+syncdown config set appleNotes.enabled true
+syncdown config set appleNotes.interval 1h
 ```
 
 標準入力からシークレット値を読む:
@@ -119,6 +124,8 @@ syncdown config unset google.refreshToken
 - `googleCalendar.enabled`
 - `googleCalendar.interval`
 - `googleCalendar.selectedCalendarIds`
+- macOS 上の `appleNotes.enabled`
+- macOS 上の `appleNotes.interval`
 
 secret-backed な値:
 
@@ -137,6 +144,7 @@ secret-backed な値:
 - `notion.interval`
 - `gmail.interval`
 - `googleCalendar.interval`
+- macOS 上の `appleNotes.interval`
 
 これらの interval は、TUI の同期ダッシュボードが **integration ごとの watch** モードを開始するときに使われます。
 

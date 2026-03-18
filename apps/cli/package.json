@@ -19,6 +19,7 @@
 		"src"
 	],
 	"devDependencies": {
+		"@syncdown/connector-apple-notes": "workspace:*",
 		"@syncdown/connector-google-calendar": "workspace:*",
 		"@syncdown/connector-gmail": "workspace:*",
 		"@syncdown/connector-notion": "workspace:*",

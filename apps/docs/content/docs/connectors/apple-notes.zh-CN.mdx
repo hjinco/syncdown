@@ -1,0 +1,55 @@
+---
+title: Apple Notes
+description: 说明如何设置 Apple Notes connector，以及本地 Notes 应用中哪些内容会被同步。
+---
+
+# Apple Notes
+
+Apple Notes connector 会把本地 Notes 应用中可读取的笔记同步为 Markdown。
+
+## 平台支持
+
+当前 Apple Notes 同步仅支持 macOS。
+
+`syncdown` 需要能够在你运行它的同一台 Mac 上本地访问 Notes 应用。如果 macOS 阻止访问，请重新运行该 connector 并批准权限提示，或者为当前终端或应用授予访问权限。
+
+## 无界面设置
+
+```sh
+syncdown config set appleNotes.enabled true
+syncdown config set appleNotes.interval 1h
+```
+
+然后运行：
+
+```sh
+syncdown run --connector apple-notes
+```
+
+## 会同步什么
+
+当前该 connector 会同步：
+
+- 笔记标题
+- 渲染为 Markdown 文本的正文
+- 创建和更新时间戳
+- 账号名称
+- 文件夹路径
+
+当前不会提取或复制附件。
+
+## 输出布局
+
+Markdown 文件会写入账号和文件夹路径下：
+
+```text
+apple-notes/<account>/<folder>/note-title-<note-id>.md
+```
+
+嵌套文件夹结构会保留在输出路径中。
+
+## 当前限制
+
+- 仅支持 macOS
+- 需要本地 Notes 访问权限
+- 已加锁或无法读取的笔记会带 warning 跳过

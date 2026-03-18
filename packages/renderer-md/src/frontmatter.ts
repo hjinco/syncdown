@@ -3,6 +3,15 @@ import type { SourceSnapshot } from "@syncdown/core";
 import { normalizeFrontmatterKey } from "./strings.js";
 import { appendYamlValue } from "./yaml.js";
 
+function getAppleNotesFolderLabel(document: SourceSnapshot): string | null {
+	const folderPath = document.metadata.appleNotesFolderPath;
+	if (Array.isArray(folderPath) && folderPath.length > 0) {
+		return folderPath.join("/");
+	}
+
+	return document.metadata.appleNotesFolder ?? null;
+}
+
 export function buildFrontmatterFields(
 	document: SourceSnapshot,
 ): Map<string, unknown> {
@@ -93,6 +102,11 @@ export function buildFrontmatterFields(
 
 	if (document.metadata.calendarRecurrence) {
 		fields.set("recurrence", document.metadata.calendarRecurrence);
+	}
+
+	const appleNotesFolderLabel = getAppleNotesFolderLabel(document);
+	if (appleNotesFolderLabel) {
+		fields.set("folder", appleNotesFolderLabel);
 	}
 
 	return fields;

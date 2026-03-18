@@ -28,6 +28,8 @@ syncdown run
 
 对于 Gmail、Google Calendar 或 Notion OAuth，请使用下面列出的各 connector secret key。
 
+Apple Notes 不同。在 macOS 上，你可以在不保存 secret 的情况下启用它。
+
 ## 配置模型
 
 持久化配置包含：
@@ -57,6 +59,9 @@ syncdown config set gmail.fetchConcurrency 10
 syncdown config set googleCalendar.enabled true
 syncdown config set googleCalendar.interval 1h
 syncdown config set googleCalendar.selectedCalendarIds primary,work@example.com
+
+syncdown config set appleNotes.enabled true
+syncdown config set appleNotes.interval 1h
 ```
 
 从标准输入读取 secret 值：
@@ -119,6 +124,8 @@ syncdown config unset google.refreshToken
 - `googleCalendar.enabled`
 - `googleCalendar.interval`
 - `googleCalendar.selectedCalendarIds`
+- macOS 上的 `appleNotes.enabled`
+- macOS 上的 `appleNotes.interval`
 
 secret-backed 值：
 
@@ -137,6 +144,7 @@ connector interval 按 integration 保存：
 - `notion.interval`
 - `gmail.interval`
 - `googleCalendar.interval`
+- macOS 上的 `appleNotes.interval`
 
 这些 interval 会在 TUI 同步面板启动 **按 integration 的 watch** 模式时使用。
 

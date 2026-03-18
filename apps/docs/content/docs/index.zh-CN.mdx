@@ -18,13 +18,14 @@ description: 了解 syncdown 做什么、能同步什么，以及应该从哪种
 - 用于同步你已授权 Notion 连接访问的页面和数据库的 Notion connector
 - 用于 `Primary` 收件箱消息的 Gmail connector
 - 用于选定日历以及事件/重复系列导出的 Google Calendar connector
+- 用于 macOS 本地笔记的 Apple Notes connector
 - 按 connector 分组写入本地文件的 Markdown 渲染
 
 ## 它能做什么
 
 从整体流程看，`syncdown` 可以帮助你：
 
-1. 连接 Notion、Gmail、Google Calendar 等受支持的服务。
+1. 连接 Notion、Gmail、Google Calendar、Apple Notes 等受支持的服务。
 2. 选择本地输出目录。
 3. 从这些服务中抓取内容。
 4. 按可预测的目录结构写出每个来源对应的 Markdown 文件。
@@ -54,6 +55,13 @@ description: 了解 syncdown 做什么、能同步什么，以及应该从哪种
 - 选择性日历同步
 - 基于每个日历 sync token 的增量更新
 
+### Apple Notes
+
+- 每条可读取的本地笔记对应一个 Markdown 文件
+- macOS 本地 Notes 访问
+- 按账号和文件夹组织输出路径
+- 通过重复运行保持本地 Notes 内容同步
+
 ## 输出长什么样
 
 渲染后的文件会按 connector 分组，便于检查和管理。
@@ -65,6 +73,7 @@ notion/pages/project-plan-<source-id>.md
 notion/databases/tasks/task-item-<source-id>.md
 gmail/account-example-com/2026/03/weekly-update-<message-id>.md
 google-calendar/primary/2026/03/team-sync-<event-id>.md
+apple-notes/personal-icloud/scratchpad/daily-notes-note-id-123.md
 ```
 
 每个文档都会以 YAML frontmatter 开头，用来保留 connector 元数据和数据源特有字段。具体字段取决于 connector。

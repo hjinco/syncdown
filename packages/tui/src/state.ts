@@ -1,6 +1,7 @@
 import path from "node:path";
 import type {
 	AppIo,
+	AppleNotesIntegrationConfig,
 	AppPaths,
 	CalendarIntegrationConfig,
 	ConnectionConfig,
@@ -35,7 +36,11 @@ export type OutputPresetAction =
 	| "downloads"
 	| "home"
 	| "custom";
-export type ConnectorTarget = "notion" | "gmail" | "google-calendar";
+export type ConnectorTarget =
+	| "notion"
+	| "gmail"
+	| "google-calendar"
+	| "apple-notes";
 export type ProviderTarget = "google" | "notion";
 export type SecretTarget =
 	| "notionToken"
@@ -99,6 +104,12 @@ export interface ConnectorStatus {
 	description: string;
 }
 
+export function isAppleNotesSupportedPlatform(
+	platform: NodeJS.Platform = process.platform,
+): boolean {
+	return platform === "darwin";
+}
+
 export const INTERVAL_OPTIONS: SyncIntervalPreset[] = [
 	"5m",
 	"15m",
@@ -121,6 +132,7 @@ export function getDraftIntegration(
 	draft: DraftState,
 	connector: ConnectorTarget,
 ):
+	| AppleNotesIntegrationConfig
 	| GmailIntegrationConfig
 	| CalendarIntegrationConfig
 	| ReturnType<typeof getDefaultIntegration> {
@@ -258,6 +270,10 @@ export function hasAnyStoredCredentials(
 	draft: DraftState,
 	connector: ConnectorTarget,
 ): boolean {
+	if (connector === "apple-notes") {
+		return false;
+	}
+
 	if (connector === "notion") {
 		return [
 			draft.notionToken,
@@ -285,6 +301,27 @@ export function getConnectorStatus(
 	draft: DraftState,
 	connector: ConnectorTarget,
 ): ConnectorStatus {
+	if (connector === "apple-notes") {
+		if (!isDraftConnectorEnabled(draft, connector)) {
+			return {
+				label: "disconnected",
+				description: "Local Apple Notes sync is disabled.",
+			};
+		}
+
+		if (!isAppleNotesSupportedPlatform()) {
+			return {
+				label: "needs setup",
+				description: "Apple Notes sync requires macOS.",
+			};
+		}
+
+		return {
+			label: "connected",
+			description: "Ready to sync from the local Notes app.",
+		};
+	}
+
 	const enabled = isDraftConnectorEnabled(draft, connector);
 	const completeCredentials =
 		connector === "notion"
@@ -410,6 +447,9 @@ export function stageStoredCredentialDisconnect(
 	connector: ConnectorTarget,
 ): void {
 	setConnectorEnabled(draft, connector, false);
+	if (connector === "apple-notes") {
+		return;
+	}
 	if (connector === "notion") {
 		if (getDraftNotionAuthMethod(draft) === "oauth") {
 			applySecretAction(draft, "notionOauthClientId", "delete");
@@ -571,14 +611,23 @@ export function buildOverview(paths: AppPaths, draft: DraftState): string {
 	const notionStatus = getConnectorStatus(draft, "notion");
 	const gmailStatus = getConnectorStatus(draft, "gmail");
 	const googleCalendarStatus = getConnectorStatus(draft, "google-calendar");
-	return [
+	const lines = [
 		`config: ${paths.configPath}`,
 		`secrets: ${paths.secretsPath}`,
 		`output: ${draft.config.outputDir ?? "<unset>"}`,
 		`notion: ${notionStatus.label} | method=${getDraftNotionAuthMethod(draft)} | interval=${getDraftInterval(draft, "notion")} | enabled=${isDraftConnectorEnabled(draft, "notion") ? "yes" : "no"}`,
 		`gmail: ${gmailStatus.label} | interval=${getDraftInterval(draft, "gmail")} | enabled=${isDraftConnectorEnabled(draft, "gmail") ? "yes" : "no"}`,
 		`google-calendar: ${googleCalendarStatus.label} | interval=${getDraftInterval(draft, "google-calendar")} | selected=${getDraftSelectedGoogleCalendarIds(draft).length} | enabled=${isDraftConnectorEnabled(draft, "google-calendar") ? "yes" : "no"}`,
-	].join("\n");
+	];
+
+	if (isAppleNotesSupportedPlatform()) {
+		const appleNotesStatus = getConnectorStatus(draft, "apple-notes");
+		lines.push(
+			`apple-notes: ${appleNotesStatus.label} | interval=${getDraftInterval(draft, "apple-notes")} | enabled=${isDraftConnectorEnabled(draft, "apple-notes") ? "yes" : "no"}`,
+		);
+	}
+
+	return lines.join("\n");
 }
 
 function padTwo(value: number): string {
