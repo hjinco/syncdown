@@ -209,7 +209,7 @@ test("gmail frontmatter includes gmail metadata fields", () => {
 
 test("gmail account path segments are slugified from the raw email", () => {
 	const renderer = createMarkdownRenderer();
-	const snapshot = {
+	const snapshot: SourceSnapshot = {
 		...createGmailSnapshot(),
 		pathHint: {
 			kind: "message",
