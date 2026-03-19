@@ -16,7 +16,7 @@
     },
     "apps/cli": {
       "name": "@syncdown/cli",
-      "version": "0.1.2",
+      "version": "0.2.0",
       "bin": {
         "syncdown": "./src/bin.ts",
       },
@@ -25,6 +25,7 @@
         "@syncdown/connector-gmail": "workspace:*",
         "@syncdown/connector-google-calendar": "workspace:*",
         "@syncdown/connector-notion": "workspace:*",
+        "@syncdown/connectors": "workspace:*",
         "@syncdown/core": "workspace:*",
         "@syncdown/renderer-md": "workspace:*",
         "@syncdown/secrets": "workspace:*",
@@ -91,6 +92,17 @@
         "@syncdown/core": "workspace:*",
       },
     },
+    "packages/connectors": {
+      "name": "@syncdown/connectors",
+      "version": "0.1.0",
+      "dependencies": {
+        "@syncdown/connector-apple-notes": "workspace:*",
+        "@syncdown/connector-gmail": "workspace:*",
+        "@syncdown/connector-google-calendar": "workspace:*",
+        "@syncdown/connector-notion": "workspace:*",
+        "@syncdown/core": "workspace:*",
+      },
+    },
     "packages/core": {
       "name": "@syncdown/core",
       "version": "0.1.0",
@@ -99,6 +111,7 @@
       "name": "@syncdown/renderer-md",
       "version": "0.1.0",
       "dependencies": {
+        "@syncdown/connectors": "workspace:*",
         "@syncdown/core": "workspace:*",
       },
     },
@@ -632,6 +645,8 @@
     "@syncdown/connector-google-calendar": ["@syncdown/connector-google-calendar@workspace:packages/connector-google-calendar"],
 
     "@syncdown/connector-notion": ["@syncdown/connector-notion@workspace:packages/connector-notion"],
+
+    "@syncdown/connectors": ["@syncdown/connectors@workspace:packages/connectors"],
 
     "@syncdown/core": ["@syncdown/core@workspace:packages/core"],
 
