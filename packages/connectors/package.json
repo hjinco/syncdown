@@ -10,7 +10,7 @@
 	},
 	"scripts": {
 		"typecheck": "tsgo -p ./tsconfig.json --noEmit --pretty false",
-		"test": "bun test"
+		"test": "bun test ./src"
 	},
 	"dependencies": {
 		"@syncdown/connector-apple-notes": "workspace:*",
