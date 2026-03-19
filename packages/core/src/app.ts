@@ -4,7 +4,7 @@ import {
 	createStdIo,
 	describeOutputDirectory,
 	ensureAppDirectories,
-	readConfig,
+	ensureConfig,
 	resolveAppPaths,
 } from "./config.js";
 import {
@@ -18,6 +18,7 @@ import {
 	getIntegrationRenderVersion,
 	hasStoredCredentials,
 } from "./execution.js";
+import { getServicePlugins } from "./plugin.js";
 import { acquireRunLock } from "./run-lock.js";
 import {
 	type AppRuntime,
@@ -43,6 +44,7 @@ export function createSyncdownApp(
 	services: SyncdownServices,
 	runtimeOverrides: Partial<AppRuntime> = {},
 ): SyncdownApp {
+	const plugins = getServicePlugins(services);
 	const runtime = createRuntime(runtimeOverrides);
 	const resetPaths = (paths: AppSnapshot["paths"]) => [
 		paths.configPath,
@@ -56,19 +58,19 @@ export function createSyncdownApp(
 	const inspect = async (): Promise<AppSnapshot> => {
 		const paths = resolveAppPaths();
 		await ensureAppDirectories(paths);
-		const config = await readConfig(paths);
+		const config = await ensureConfig(paths, plugins);
 		const integrations = await Promise.all(
 			config.integrations.flatMap(async (integration) => {
-				const connector = services.connectors.find(
+				const plugin = plugins.find(
 					(candidate) => candidate.id === integration.connectorId,
 				);
-				if (!connector) {
+				if (!plugin) {
 					return [];
 				}
 
 				return [
 					buildIntegrationSummary(
-						connector,
+						plugin,
 						integration,
 						await services.state.getLastSyncAt(integration.id),
 					),
@@ -79,7 +81,7 @@ export function createSyncdownApp(
 		return {
 			paths,
 			config,
-			connectors: toConnectorDefinitions(services.connectors),
+			connectors: toConnectorDefinitions(plugins),
 			connections: toConnectionSummaries(config),
 			integrations: integrations.flat(),
 		};
@@ -221,10 +223,10 @@ export function createSyncdownApp(
 			}
 
 			for (const integrationSummary of snapshot.integrations) {
-				const connector = services.connectors.find(
+				const plugin = plugins.find(
 					(candidate) => candidate.id === integrationSummary.connectorId,
 				);
-				if (!connector) {
+				if (!plugin) {
 					continue;
 				}
 				const integration = snapshot.config.integrations.find(
@@ -234,20 +236,20 @@ export function createSyncdownApp(
 					continue;
 				}
 				const request = await buildSyncRequest(
-					connector,
+					plugin,
 					integration,
 					services,
 					snapshot.config,
 					snapshot.paths,
 					io,
-					getIntegrationRenderVersion(services, integration),
+					getIntegrationRenderVersion(services, plugin, integration),
 					async () => {},
 					async () => {},
 					async () => {},
 					async () => {},
 					() => {},
 				);
-				const check = await connector.validate(request);
+				const check = await plugin.validate(request);
 				io.write(formatHealth(integration.label, check));
 			}
 

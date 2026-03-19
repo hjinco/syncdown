@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 
 import { createSyncdownApp } from "./app.js";
-import { readConfig, writeConfig } from "./config.js";
+import { ensureConfig, writeConfig } from "./config.js";
 import { getDefaultIntegration } from "./config-model.js";
 import {
 	createConnector,
@@ -189,7 +189,7 @@ test("session tracks integrations added or replaced after it opens", async () =>
 		);
 
 		const session = await app.openSession(createIo());
-		const initialConfig = await readConfig(paths);
+		const initialConfig = await ensureConfig(paths);
 		const originalGoogleCalendarId = getDefaultIntegration(
 			initialConfig,
 			"google-calendar",

@@ -13,11 +13,11 @@ import {
 	DEFAULT_NOTION_TOKEN_CONNECTION_ID,
 	EXIT_CODES,
 	ensureAppDirectories,
+	ensureConfig,
 	getGoogleConnectionSecretNames,
 	getGoogleOAuthAppSecretNames,
 	getNotionOAuthAppSecretNames,
 	getNotionOAuthConnectionSecretNames,
-	readConfig,
 	resolveAppPaths,
 } from "@syncdown/core";
 
@@ -60,7 +60,7 @@ export async function launchConfigTui(
 
 	const paths = resolveAppPaths();
 	await ensureAppDirectories(paths);
-	const currentConfig = await readConfig(paths);
+	const currentConfig = await ensureConfig(paths);
 	const [
 		notionTokenStored,
 		notionOauthClientIdStored,

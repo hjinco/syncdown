@@ -3,6 +3,7 @@ import {
 	findIntegration,
 	findOAuthApp,
 	getDefaultIntegration,
+	isGoogleAccountConnection,
 	isNotionOAuthConnection,
 	toIntegrationSummary,
 } from "./config-model.js";
@@ -17,6 +18,7 @@ import {
 	readNotionOAuthConnectionCredentials,
 	refreshNotionAccessToken,
 } from "./notion-auth.js";
+import { getServicePlugins } from "./plugin.js";
 import type { AppRuntime } from "./runtime.js";
 import { isSyncCancelledError } from "./session-internals.js";
 import type {
@@ -24,8 +26,8 @@ import type {
 	AppPaths,
 	AppSnapshot,
 	ConnectionConfig,
-	Connector,
 	ConnectorId,
+	ConnectorPlugin,
 	ConnectorSyncRequest,
 	ExitCode,
 	HealthCheck,
@@ -47,18 +49,18 @@ export function getNotionConnectionSecretName(connectionId: string): string {
 }
 
 export function buildIntegrationSummary(
-	connector: Connector,
+	plugin: ConnectorPlugin,
 	integration: IntegrationConfig,
 	lastSyncAt: string | null,
 ): IntegrationSummary {
-	return toIntegrationSummary(integration, connector, lastSyncAt);
+	return toIntegrationSummary(integration, plugin, lastSyncAt);
 }
 
-export function getConnectorForIntegration(
+export function getPluginForIntegration(
 	services: SyncdownServices,
 	integration: IntegrationConfig,
-): Connector | undefined {
-	return services.connectors.find(
+): ConnectorPlugin | undefined {
+	return getServicePlugins(services).find(
 		(candidate) => candidate.id === integration.connectorId,
 	);
 }
@@ -76,14 +78,34 @@ export function getRunTargetLabel(target: SyncRunTarget): string {
 
 export function getIntegrationRenderVersion(
 	services: SyncdownServices,
-	integration: IntegrationConfig,
+	plugin: ConnectorPlugin,
+	_integration: IntegrationConfig,
 ): string {
-	return services.renderer.getVersion(integration.connectorId);
+	return services.renderer.getVersion(plugin);
+}
+
+function getSetupMethodForConnection(
+	plugin: ConnectorPlugin,
+	connection: ConnectionConfig,
+) {
+	return plugin.setupMethods.find(
+		(setupMethod) =>
+			setupMethod.connectionKind === connection.kind ||
+			setupMethod.connectionId === connection.id ||
+			(setupMethod.kind === "token" && connection.kind === "notion-token") ||
+			(setupMethod.kind === "local" &&
+				connection.kind === "apple-notes-local") ||
+			(isGoogleProviderAuth(setupMethod) &&
+				connection.kind === "google-account") ||
+			(setupMethod.kind === "provider-oauth" &&
+				setupMethod.providerId === "notion" &&
+				connection.kind === "notion-oauth-account"),
+	);
 }
 
 async function resolveConnectionAuth(
 	integration: IntegrationConfig,
-	connector: Connector,
+	plugin: ConnectorPlugin,
 	config: SyncdownConfig,
 	paths: AppPaths,
 	services: SyncdownServices,
@@ -96,22 +118,17 @@ async function resolveConnectionAuth(
 		throw new Error(`Missing connection: ${integration.connectionId}`);
 	}
 
-	if (
-		integration.connectorId === "gmail" ||
-		integration.connectorId === "google-calendar"
-	) {
-		if (connection.kind !== "google-account") {
+	const setupMethod = getSetupMethodForConnection(plugin, connection);
+	if (!setupMethod) {
+		throw new Error(
+			`Connector ${plugin.id} does not define a setup method for connection kind ${connection.kind}`,
+		);
+	}
+
+	if (isGoogleProviderAuth(setupMethod)) {
+		if (!isGoogleAccountConnection(connection)) {
 			throw new Error(
 				`Integration ${integration.id} requires a google-account connection`,
-			);
-		}
-
-		const googleSetupMethod = connector.setupMethods.find((setupMethod) =>
-			isGoogleProviderAuth(setupMethod),
-		);
-		if (!googleSetupMethod) {
-			throw new Error(
-				`Connector ${connector.id} is not configured for Google provider auth`,
 			);
 		}
 
@@ -137,45 +154,47 @@ async function resolveConnectionAuth(
 							oauthAppId: oauthApp.id,
 							connectionId: connection.id,
 						})),
-						requiredScopes: googleSetupMethod.requiredScopes,
+						requiredScopes: setupMethod.requiredScopes,
 					}
 				: null,
 		};
 	}
 
-	if (integration.connectorId === "apple-notes") {
-		if (connection.kind !== "apple-notes-local") {
-			throw new Error(
-				`Integration ${integration.id} requires an apple-notes-local connection`,
-			);
-		}
-
+	if (setupMethod.kind === "local") {
 		return {
 			connection,
 			resolvedAuth: null,
 		};
 	}
 
-	if (connection.kind === "notion-token") {
+	if (setupMethod.kind === "token") {
 		const token = await services.secrets.getSecret(
-			getNotionConnectionSecretName(connection.id),
+			setupMethod.secretName?.(connection.id) ??
+				getNotionConnectionSecretName(connection.id),
 			paths,
 		);
+		const resolvedAuth = !token
+			? null
+			: connection.kind === "notion-token"
+				? {
+						kind: "notion-token" as const,
+						token,
+					}
+				: {
+						kind: "token" as const,
+						token,
+						connectionKind: connection.kind,
+					};
 
 		return {
 			connection,
-			resolvedAuth: token
-				? {
-						kind: "notion-token",
-						token,
-					}
-				: null,
+			resolvedAuth,
 		};
 	}
 
 	if (!isNotionOAuthConnection(connection)) {
 		throw new Error(
-			`Integration ${integration.id} requires a notion connection`,
+			`Integration ${integration.id} requires a supported provider-oauth connection`,
 		);
 	}
 
@@ -218,7 +237,7 @@ async function resolveConnectionAuth(
 }
 
 export async function buildSyncRequest(
-	connector: Connector,
+	plugin: ConnectorPlugin,
 	integration: IntegrationConfig,
 	services: SyncdownServices,
 	config: SyncdownConfig,
@@ -233,7 +252,7 @@ export async function buildSyncRequest(
 ): Promise<ConnectorSyncRequest> {
 	const { connection, resolvedAuth } = await resolveConnectionAuth(
 		integration,
-		connector,
+		plugin,
 		config,
 		paths,
 		services,
@@ -272,11 +291,18 @@ export async function hasIntegrationStoredCredentials(
 		return false;
 	}
 
-	if (
-		integration.connectorId === "gmail" ||
-		integration.connectorId === "google-calendar"
-	) {
-		if (connection.kind !== "google-account") {
+	const plugin = getPluginForIntegration(services, integration);
+	if (!plugin) {
+		return false;
+	}
+
+	const setupMethod = getSetupMethodForConnection(plugin, connection);
+	if (!setupMethod) {
+		return false;
+	}
+
+	if (isGoogleProviderAuth(setupMethod)) {
+		if (!isGoogleAccountConnection(connection)) {
 			return false;
 		}
 
@@ -286,13 +312,14 @@ export async function hasIntegrationStoredCredentials(
 		});
 	}
 
-	if (integration.connectorId === "apple-notes") {
+	if (setupMethod.kind === "local") {
 		return process.platform === "darwin";
 	}
 
-	if (connection.kind === "notion-token") {
+	if (setupMethod.kind === "token") {
 		return services.secrets.hasSecret(
-			getNotionConnectionSecretName(connection.id),
+			setupMethod.secretName?.(connection.id) ??
+				getNotionConnectionSecretName(connection.id),
 			paths,
 		);
 	}
@@ -324,14 +351,14 @@ export async function hasStoredCredentials(
 export function getEnabledIntegrations(
 	services: SyncdownServices,
 	config: SyncdownConfig,
-): Array<{ connector: Connector; integration: IntegrationConfig }> {
+): Array<{ plugin: ConnectorPlugin; integration: IntegrationConfig }> {
 	return config.integrations.flatMap((integration) => {
 		if (!integration.enabled) {
 			return [];
 		}
 
-		const connector = getConnectorForIntegration(services, integration);
-		return connector ? [{ connector, integration }] : [];
+		const plugin = getPluginForIntegration(services, integration);
+		return plugin ? [{ plugin, integration }] : [];
 	});
 }
 
@@ -384,7 +411,7 @@ async function withRetries<T>(
 }
 
 export async function runIntegrationSync({
-	connector,
+	plugin,
 	integration,
 	snapshot,
 	services,
@@ -394,7 +421,7 @@ export async function runIntegrationSync({
 	throwIfCancelled,
 	emitSnapshot,
 }: {
-	connector: Connector;
+	plugin: ConnectorPlugin;
 	integration: IntegrationConfig;
 	snapshot: IntegrationRuntimeSnapshot;
 	services: SyncdownServices;
@@ -405,7 +432,11 @@ export async function runIntegrationSync({
 	emitSnapshot(): void;
 }): Promise<ExitCode> {
 	const startedAt = runtime.now().toISOString();
-	const renderVersion = getIntegrationRenderVersion(services, integration);
+	const renderVersion = getIntegrationRenderVersion(
+		services,
+		plugin,
+		integration,
+	);
 	snapshot.running = true;
 	snapshot.status = "running";
 	snapshot.lastStartedAt = startedAt;
@@ -429,7 +460,7 @@ export async function runIntegrationSync({
 				integrationId: integration.id,
 				connectorId: integration.connectorId,
 			};
-			const rendered = services.renderer.render(withIds);
+			const rendered = services.renderer.render(withIds, plugin);
 			const previousRecord = await services.state.getSourceRecord(
 				integration.id,
 				withIds.sourceId,
@@ -510,7 +541,7 @@ export async function runIntegrationSync({
 		};
 
 		const request = await buildSyncRequest(
-			connector,
+			plugin,
 			integration,
 			services,
 			appSnapshot.config,
@@ -524,7 +555,7 @@ export async function runIntegrationSync({
 			setProgress,
 		);
 		request.throwIfCancelled();
-		const check = await connector.validate(request);
+		const check = await plugin.validate(request);
 		request.throwIfCancelled();
 		io.write(formatHealth(integration.label, check));
 
@@ -541,7 +572,7 @@ export async function runIntegrationSync({
 		const result = await withRetries(
 			`${integration.label} sync`,
 			io,
-			() => connector.sync(request),
+			() => plugin.sync(request),
 			runtime,
 		);
 		request.throwIfCancelled();
@@ -616,7 +647,7 @@ export function getTargetIntegrations(
 	services: SyncdownServices,
 	appSnapshot: AppSnapshot,
 	target: SyncRunTarget,
-): Array<{ connector: Connector; integration: IntegrationConfig }> {
+): Array<{ plugin: ConnectorPlugin; integration: IntegrationConfig }> {
 	if (target.kind === "all") {
 		return getEnabledIntegrations(services, appSnapshot.config);
 	}
@@ -632,6 +663,6 @@ export function getTargetIntegrations(
 		return [];
 	}
 
-	const connector = getConnectorForIntegration(services, integration);
-	return connector ? [{ connector, integration }] : [];
+	const plugin = getPluginForIntegration(services, integration);
+	return plugin ? [{ plugin, integration }] : [];
 }

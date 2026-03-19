@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import {
 	Client,
 	collectPaginatedAPI,
@@ -7,9 +9,19 @@ import {
 
 import type {
 	Connector,
+	ConnectorPlugin,
 	ConnectorSyncRequest,
 	ConnectorSyncResult,
 	HealthCheck,
+	IntegrationConfig,
+} from "@syncdown/core";
+import {
+	DEFAULT_NOTION_OAUTH_APP_ID,
+	DEFAULT_NOTION_OAUTH_CONNECTION_ID,
+	DEFAULT_NOTION_TOKEN_CONNECTION_ID,
+	defineConnectorPlugin,
+	getNotionOAuthAppSecretNames,
+	getNotionOAuthConnectionSecretNames,
 } from "@syncdown/core";
 import {
 	toNotionCandidatePage,
@@ -214,11 +226,20 @@ class NotionConnector implements Connector {
 	readonly setupMethods = [
 		{
 			kind: "token",
+			connectionId: DEFAULT_NOTION_TOKEN_CONNECTION_ID,
+			connectionKind: "notion-token",
+			label: "Token",
+			secretName(connectionId: string) {
+				return `connections.${connectionId}.token`;
+			},
 		},
 		{
 			kind: "provider-oauth",
 			providerId: "notion",
 			requiredScopes: [],
+			connectionId: DEFAULT_NOTION_OAUTH_CONNECTION_ID,
+			connectionKind: "notion-oauth-account",
+			label: "OAuth",
 		},
 	] as const;
 
@@ -625,10 +646,357 @@ class NotionConnector implements Connector {
 	}
 }
 
+function normalizeNotionConnection(
+	entry: Partial<{
+		id: string;
+		kind: string;
+		label: string;
+		oauthAppId?: string;
+		workspaceId?: string;
+		workspaceName?: string;
+		botId?: string;
+		ownerUserId?: string;
+		ownerUserName?: string;
+	}>,
+) {
+	if (typeof entry.id !== "string" || typeof entry.label !== "string") {
+		return [];
+	}
+
+	if (entry.kind === "notion-token") {
+		return [
+			{
+				id: entry.id,
+				kind: "notion-token" as const,
+				label: entry.label,
+				workspaceName:
+					typeof entry.workspaceName === "string"
+						? entry.workspaceName
+						: undefined,
+			},
+		];
+	}
+
+	if (
+		entry.kind === "notion-oauth-account" &&
+		typeof entry.oauthAppId === "string"
+	) {
+		return [
+			{
+				id: entry.id,
+				kind: "notion-oauth-account" as const,
+				label: entry.label,
+				oauthAppId: entry.oauthAppId,
+				workspaceId:
+					typeof entry.workspaceId === "string" ? entry.workspaceId : undefined,
+				workspaceName:
+					typeof entry.workspaceName === "string"
+						? entry.workspaceName
+						: undefined,
+				botId: typeof entry.botId === "string" ? entry.botId : undefined,
+				ownerUserId:
+					typeof entry.ownerUserId === "string" ? entry.ownerUserId : undefined,
+				ownerUserName:
+					typeof entry.ownerUserName === "string"
+						? entry.ownerUserName
+						: undefined,
+			},
+		];
+	}
+
+	return [];
+}
+
+function normalizeNotionIntegration(entry: Partial<IntegrationConfig>) {
+	if (
+		entry.connectorId !== "notion" ||
+		typeof entry.id !== "string" ||
+		typeof entry.connectionId !== "string" ||
+		typeof entry.label !== "string" ||
+		typeof entry.enabled !== "boolean" ||
+		(entry.interval !== "5m" &&
+			entry.interval !== "15m" &&
+			entry.interval !== "1h" &&
+			entry.interval !== "6h" &&
+			entry.interval !== "24h")
+	) {
+		return [];
+	}
+
+	return [
+		{
+			id: entry.id,
+			connectorId: "notion" as const,
+			connectionId: entry.connectionId,
+			label: entry.label,
+			enabled: entry.enabled,
+			interval: entry.interval,
+			config: {},
+		},
+	];
+}
+
+export function createNotionConnectorPlugin(
+	options: CreateNotionConnectorOptions = {},
+): ConnectorPlugin {
+	const runtime = new NotionConnector(
+		options.adapter ?? new OfficialNotionAdapter(options.clientFactory),
+	);
+	return defineConnectorPlugin({
+		id: runtime.id,
+		label: runtime.label,
+		setupMethods: [
+			{
+				kind: "token",
+				connectionId: DEFAULT_NOTION_TOKEN_CONNECTION_ID,
+				connectionKind: "notion-token",
+				label: "Token",
+				secretName(connectionId) {
+					return `connections.${connectionId}.token`;
+				},
+			},
+			{
+				kind: "provider-oauth",
+				providerId: "notion",
+				requiredScopes: [],
+				connectionId: DEFAULT_NOTION_OAUTH_CONNECTION_ID,
+				connectionKind: "notion-oauth-account",
+				label: "OAuth",
+			},
+		],
+		validate: runtime.validate.bind(runtime),
+		sync: runtime.sync.bind(runtime),
+		manifest: {
+			id: runtime.id,
+			label: runtime.label,
+			setupMethods: [
+				{
+					kind: "token",
+					connectionId: DEFAULT_NOTION_TOKEN_CONNECTION_ID,
+					connectionKind: "notion-token",
+					label: "Token",
+					secretName(connectionId) {
+						return `connections.${connectionId}.token`;
+					},
+				},
+				{
+					kind: "provider-oauth",
+					providerId: "notion",
+					requiredScopes: [],
+					connectionId: DEFAULT_NOTION_OAUTH_CONNECTION_ID,
+					connectionKind: "notion-oauth-account",
+					label: "OAuth",
+				},
+			],
+			cliAliases: [
+				{
+					key: "notion.enabled",
+					async setValue(context, rawValue) {
+						if (rawValue !== "true" && rawValue !== "false") {
+							throw new Error("notion.enabled must be `true` or `false`.");
+						}
+						const integration = context.config.integrations.find(
+							(candidate) => candidate.connectorId === "notion",
+						);
+						if (!integration) {
+							throw new Error("Missing default Notion integration.");
+						}
+						integration.enabled = rawValue === "true";
+						return `Set notion.enabled=${integration.enabled}`;
+					},
+				},
+				{
+					key: "notion.interval",
+					async setValue(context, rawValue) {
+						if (
+							rawValue !== "5m" &&
+							rawValue !== "15m" &&
+							rawValue !== "1h" &&
+							rawValue !== "6h" &&
+							rawValue !== "24h"
+						) {
+							throw new Error(
+								"notion.interval must be one of: 5m, 15m, 1h, 6h, 24h",
+							);
+						}
+						const integration = context.config.integrations.find(
+							(candidate) => candidate.connectorId === "notion",
+						);
+						if (!integration) {
+							throw new Error("Missing default Notion integration.");
+						}
+						integration.interval = rawValue;
+						return `Set notion.interval=${integration.interval}`;
+					},
+				},
+				{
+					key: "notion.authMethod",
+					async setValue(context, rawValue) {
+						if (rawValue !== "token" && rawValue !== "oauth") {
+							throw new Error("notion.authMethod must be `token` or `oauth`.");
+						}
+						const integration = context.config.integrations.find(
+							(candidate) => candidate.connectorId === "notion",
+						);
+						if (!integration) {
+							throw new Error("Missing default Notion integration.");
+						}
+						integration.connectionId =
+							rawValue === "oauth"
+								? DEFAULT_NOTION_OAUTH_CONNECTION_ID
+								: DEFAULT_NOTION_TOKEN_CONNECTION_ID;
+						return `Set notion.authMethod=${rawValue}`;
+					},
+				},
+				{
+					key: "notion.token",
+					secret: true,
+					async setValue(context, rawValue) {
+						const value = rawValue.trim();
+						if (!value) {
+							throw new Error("notion.token cannot be empty.");
+						}
+						await context.secrets.setSecret(
+							`connections.${DEFAULT_NOTION_TOKEN_CONNECTION_ID}.token`,
+							value,
+							context.paths,
+						);
+						return "Stored notion.token in encrypted secrets store.";
+					},
+					async unsetValue(context) {
+						await context.secrets.deleteSecret(
+							`connections.${DEFAULT_NOTION_TOKEN_CONNECTION_ID}.token`,
+							context.paths,
+						);
+						return "Removed notion.token from encrypted secrets store.";
+					},
+				},
+				{
+					key: "notion.oauth.clientId",
+					secret: true,
+					async setValue(context, rawValue) {
+						const value = rawValue.trim();
+						if (!value) {
+							throw new Error("notion.oauth.clientId cannot be empty.");
+						}
+						await context.secrets.setSecret(
+							getNotionOAuthAppSecretNames(DEFAULT_NOTION_OAUTH_APP_ID)
+								.clientId,
+							value,
+							context.paths,
+						);
+						return "Stored notion.oauth.clientId in encrypted secrets store.";
+					},
+					async unsetValue(context) {
+						await context.secrets.deleteSecret(
+							getNotionOAuthAppSecretNames(DEFAULT_NOTION_OAUTH_APP_ID)
+								.clientId,
+							context.paths,
+						);
+						return "Removed notion.oauth.clientId from encrypted secrets store.";
+					},
+				},
+				{
+					key: "notion.oauth.clientSecret",
+					secret: true,
+					async setValue(context, rawValue) {
+						const value = rawValue.trim();
+						if (!value) {
+							throw new Error("notion.oauth.clientSecret cannot be empty.");
+						}
+						await context.secrets.setSecret(
+							getNotionOAuthAppSecretNames(DEFAULT_NOTION_OAUTH_APP_ID)
+								.clientSecret,
+							value,
+							context.paths,
+						);
+						return "Stored notion.oauth.clientSecret in encrypted secrets store.";
+					},
+					async unsetValue(context) {
+						await context.secrets.deleteSecret(
+							getNotionOAuthAppSecretNames(DEFAULT_NOTION_OAUTH_APP_ID)
+								.clientSecret,
+							context.paths,
+						);
+						return "Removed notion.oauth.clientSecret from encrypted secrets store.";
+					},
+				},
+				{
+					key: "notion.oauth.refreshToken",
+					secret: true,
+					async setValue(context, rawValue) {
+						const value = rawValue.trim();
+						if (!value) {
+							throw new Error("notion.oauth.refreshToken cannot be empty.");
+						}
+						await context.secrets.setSecret(
+							getNotionOAuthConnectionSecretNames(
+								DEFAULT_NOTION_OAUTH_CONNECTION_ID,
+							).refreshToken,
+							value,
+							context.paths,
+						);
+						return "Stored notion.oauth.refreshToken in encrypted secrets store.";
+					},
+					async unsetValue(context) {
+						await context.secrets.deleteSecret(
+							getNotionOAuthConnectionSecretNames(
+								DEFAULT_NOTION_OAUTH_CONNECTION_ID,
+							).refreshToken,
+							context.paths,
+						);
+						return "Removed notion.oauth.refreshToken from encrypted secrets store.";
+					},
+				},
+			],
+		},
+		render: {
+			version: "1",
+		},
+		seedOAuthApps() {
+			return [
+				{
+					id: DEFAULT_NOTION_OAUTH_APP_ID,
+					providerId: "notion",
+					label: "Default Notion OAuth App",
+				},
+			];
+		},
+		seedConnections() {
+			return [
+				{
+					id: DEFAULT_NOTION_TOKEN_CONNECTION_ID,
+					kind: "notion-token",
+					label: "Default Notion Token Connection",
+				},
+				{
+					id: DEFAULT_NOTION_OAUTH_CONNECTION_ID,
+					kind: "notion-oauth-account",
+					label: "Default Notion OAuth Connection",
+					oauthAppId: DEFAULT_NOTION_OAUTH_APP_ID,
+				},
+			];
+		},
+		seedIntegrations() {
+			return [
+				{
+					id: randomUUID(),
+					connectorId: "notion",
+					connectionId: DEFAULT_NOTION_TOKEN_CONNECTION_ID,
+					label: "Notion",
+					enabled: false,
+					interval: "1h",
+					config: {},
+				},
+			];
+		},
+		normalizeConnection: normalizeNotionConnection,
+		normalizeIntegration: normalizeNotionIntegration,
+	});
+}
+
 export function createNotionConnector(
 	options: CreateNotionConnectorOptions = {},
 ): Connector {
-	return new NotionConnector(
-		options.adapter ?? new OfficialNotionAdapter(options.clientFactory),
-	);
+	return createNotionConnectorPlugin(options);
 }

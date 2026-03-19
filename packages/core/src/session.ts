@@ -8,6 +8,7 @@ import {
 	resetIntegrationState,
 	runIntegrationSync,
 } from "./execution.js";
+import { getServicePlugins } from "./plugin.js";
 import {
 	acquireRunLock,
 	type RunLockHandle,
@@ -59,6 +60,7 @@ async function createSyncSession(
 	io: AppIo,
 ): Promise<InternalSyncSession> {
 	const initialAppSnapshot = await inspect();
+	const plugins = getServicePlugins(services);
 	const integrationStates = new Map<string, InternalIntegrationState>(
 		initialAppSnapshot.integrations.flatMap((summary) => {
 			const integration = findIntegration(
@@ -340,7 +342,7 @@ async function createSyncSession(
 
 		const runPromise = (async () => {
 			let exitCode = await runIntegrationSync({
-				connector: entry.connector,
+				plugin: entry.plugin,
 				integration: entry.integration,
 				snapshot: integrationState.snapshot,
 				services,
@@ -387,16 +389,12 @@ async function createSyncSession(
 					latestSnapshot.config,
 					entry.integration.id,
 				);
-				const latestConnector = latestIntegration
-					? services.connectors.find(
+				const latestPlugin = latestIntegration
+					? plugins.find(
 							(candidate) => candidate.id === latestIntegration.connectorId,
 						)
 					: undefined;
-				if (
-					!latestIntegration ||
-					!latestConnector ||
-					!latestIntegration.enabled
-				) {
+				if (!latestIntegration || !latestPlugin || !latestIntegration.enabled) {
 					appendLog(
 						"info",
 						`Integration skipped: ${entry.integration.label} is disabled.`,
@@ -411,7 +409,7 @@ async function createSyncSession(
 
 				integrationState.integration = latestIntegration;
 				exitCode = await runIntegrationSync({
-					connector: latestConnector,
+					plugin: latestPlugin,
 					integration: latestIntegration,
 					snapshot: integrationState.snapshot,
 					services,

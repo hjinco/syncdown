@@ -5,7 +5,14 @@
 		"moduleResolution": "NodeNext",
 		"paths": {
 			"@syncdown/cli": ["./apps/cli/src/index.ts"],
+			"@syncdown/connectors": ["./packages/connectors/src/index.ts"],
+			"@syncdown/connector-apple-notes": [
+				"./packages/connector-apple-notes/src/index.ts"
+			],
 			"@syncdown/connector-gmail": ["./packages/connector-gmail/src/index.ts"],
+			"@syncdown/connector-google-calendar": [
+				"./packages/connector-google-calendar/src/index.ts"
+			],
 			"@syncdown/connector-notion": [
 				"./packages/connector-notion/src/index.ts"
 			],

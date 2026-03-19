@@ -112,10 +112,17 @@ export function buildFrontmatterFields(
 	return fields;
 }
 
-export function stringifyFrontmatter(document: SourceSnapshot): string {
+export function stringifyFrontmatter(
+	document: SourceSnapshot,
+	extraFields?: Map<string, unknown>,
+): string {
 	const lines = ["---"];
 
 	for (const [key, value] of buildFrontmatterFields(document)) {
+		appendYamlValue(lines, key, value);
+	}
+
+	for (const [key, value] of extraFields ?? []) {
 		appendYamlValue(lines, key, value);
 	}
 

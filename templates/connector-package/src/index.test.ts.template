@@ -1,0 +1,15 @@
+import { expect, test } from "bun:test";
+
+import { createTemplateConnectorPlugin } from "./index.js";
+
+test("template plugin exposes manifest and runtime metadata", () => {
+	const plugin = createTemplateConnectorPlugin();
+
+	expect(plugin.id).toBe("<id>");
+	expect(plugin.label).toBe("<label>");
+	expect(plugin.render.version).toBe("1");
+	expect(plugin.manifest.cliAliases?.map((alias) => alias.key)).toEqual([
+		"<id>.enabled",
+		"<id>.interval",
+	]);
+});

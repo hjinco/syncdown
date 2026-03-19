@@ -1,11 +1,18 @@
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 
 import type {
 	Connector,
+	ConnectorPlugin,
 	ConnectorSyncRequest,
 	ConnectorSyncResult,
 	HealthCheck,
+	IntegrationConfig,
 	SourceSnapshot,
+} from "@syncdown/core";
+import {
+	DEFAULT_APPLE_NOTES_CONNECTION_ID,
+	defineConnectorPlugin,
 } from "@syncdown/core";
 
 export interface AppleNotesNote {
@@ -363,7 +370,14 @@ class MacAppleNotesAdapter implements AppleNotesAdapter {
 class AppleNotesConnector implements Connector {
 	readonly id = "apple-notes";
 	readonly label = "Apple Notes";
-	readonly setupMethods = [] as const;
+	readonly setupMethods = [
+		{
+			kind: "local",
+			connectionId: DEFAULT_APPLE_NOTES_CONNECTION_ID,
+			connectionKind: "apple-notes-local",
+			label: "Local Access",
+		},
+	] as const;
 
 	constructor(
 		private readonly adapter: AppleNotesAdapter,
@@ -461,13 +475,160 @@ export function createAppleNotesAdapter(): AppleNotesAdapter {
 	return new MacAppleNotesAdapter();
 }
 
-export function createAppleNotesConnector(
+function normalizeAppleNotesConnection(
+	entry: Partial<{ id: string; kind: string; label: string }>,
+) {
+	if (
+		entry.kind !== "apple-notes-local" ||
+		typeof entry.id !== "string" ||
+		typeof entry.label !== "string"
+	) {
+		return [];
+	}
+
+	return [
+		{
+			id: entry.id,
+			kind: "apple-notes-local" as const,
+			label: entry.label,
+		},
+	];
+}
+
+function normalizeAppleNotesIntegration(entry: Partial<IntegrationConfig>) {
+	if (
+		entry.connectorId !== "apple-notes" ||
+		typeof entry.id !== "string" ||
+		typeof entry.connectionId !== "string" ||
+		typeof entry.label !== "string" ||
+		typeof entry.enabled !== "boolean" ||
+		(entry.interval !== "5m" &&
+			entry.interval !== "15m" &&
+			entry.interval !== "1h" &&
+			entry.interval !== "6h" &&
+			entry.interval !== "24h")
+	) {
+		return [];
+	}
+
+	return [
+		{
+			id: entry.id,
+			connectorId: "apple-notes" as const,
+			connectionId: entry.connectionId,
+			label: entry.label,
+			enabled: entry.enabled,
+			interval: entry.interval,
+			config: {},
+		},
+	];
+}
+
+export function createAppleNotesConnectorPlugin(
 	options: CreateAppleNotesConnectorOptions = {},
-): Connector {
-	return new AppleNotesConnector(
+): ConnectorPlugin {
+	const runtime = new AppleNotesConnector(
 		options.adapter ?? createAppleNotesAdapter(),
 		options.platform ?? process.platform,
 	);
+
+	const setupMethods = [
+		{
+			kind: "local" as const,
+			connectionId: DEFAULT_APPLE_NOTES_CONNECTION_ID,
+			connectionKind: "apple-notes-local",
+			label: "Local Access",
+		},
+	];
+
+	return defineConnectorPlugin({
+		id: runtime.id,
+		label: runtime.label,
+		setupMethods,
+		validate: runtime.validate.bind(runtime),
+		sync: runtime.sync.bind(runtime),
+		manifest: {
+			id: runtime.id,
+			label: runtime.label,
+			setupMethods,
+			supportedPlatforms: ["darwin"],
+			cliAliases: [
+				{
+					key: "appleNotes.enabled",
+					async setValue(context, rawValue) {
+						if (rawValue !== "true" && rawValue !== "false") {
+							throw new Error("appleNotes.enabled must be `true` or `false`.");
+						}
+						const integration = context.config.integrations.find(
+							(candidate) => candidate.connectorId === "apple-notes",
+						);
+						if (!integration) {
+							throw new Error("Missing default Apple Notes integration.");
+						}
+						integration.enabled = rawValue === "true";
+						return `Set appleNotes.enabled=${integration.enabled}`;
+					},
+				},
+				{
+					key: "appleNotes.interval",
+					async setValue(context, rawValue) {
+						if (
+							rawValue !== "5m" &&
+							rawValue !== "15m" &&
+							rawValue !== "1h" &&
+							rawValue !== "6h" &&
+							rawValue !== "24h"
+						) {
+							throw new Error(
+								"appleNotes.interval must be one of: 5m, 15m, 1h, 6h, 24h",
+							);
+						}
+						const integration = context.config.integrations.find(
+							(candidate) => candidate.connectorId === "apple-notes",
+						);
+						if (!integration) {
+							throw new Error("Missing default Apple Notes integration.");
+						}
+						integration.interval = rawValue;
+						return `Set appleNotes.interval=${integration.interval}`;
+					},
+				},
+			],
+		},
+		render: {
+			version: "1",
+		},
+		seedConnections() {
+			return [
+				{
+					id: DEFAULT_APPLE_NOTES_CONNECTION_ID,
+					kind: "apple-notes-local",
+					label: "Default Apple Notes Connection",
+				},
+			];
+		},
+		seedIntegrations() {
+			return [
+				{
+					id: randomUUID(),
+					connectorId: "apple-notes",
+					connectionId: DEFAULT_APPLE_NOTES_CONNECTION_ID,
+					label: "Apple Notes",
+					enabled: false,
+					interval: "1h",
+					config: {},
+				},
+			];
+		},
+		normalizeConnection: normalizeAppleNotesConnection,
+		normalizeIntegration: normalizeAppleNotesIntegration,
+	});
+}
+
+export function createAppleNotesConnector(
+	options: CreateAppleNotesConnectorOptions = {},
+): Connector {
+	return createAppleNotesConnectorPlugin(options);
 }
 
 export { APPLE_NOTES_ACCESS_ERROR, APPLE_NOTES_SNAPSHOT_SCHEMA_VERSION };

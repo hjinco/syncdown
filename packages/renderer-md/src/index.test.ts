@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 
+import { createBuiltinConnectorPlugins } from "@syncdown/connectors";
 import type { SourceSnapshot } from "@syncdown/core";
 
 import { createMarkdownRenderer } from "./index.js";
@@ -8,6 +9,16 @@ const NOTION_INTEGRATION_ID = "11111111-1111-4111-8111-111111111111";
 const GMAIL_INTEGRATION_ID = "22222222-2222-4222-8222-222222222222";
 const CALENDAR_INTEGRATION_ID = "33333333-3333-4333-8333-333333333333";
 const APPLE_NOTES_INTEGRATION_ID = "44444444-4444-4444-8444-444444444444";
+
+function getPlugin(connectorId: SourceSnapshot["connectorId"]) {
+	const plugin = createBuiltinConnectorPlugins("darwin").find(
+		(candidate) => candidate.id === connectorId,
+	);
+	if (!plugin) {
+		throw new Error(`Missing test plugin for ${connectorId}`);
+	}
+	return plugin;
+}
 
 function createGmailSnapshot(): SourceSnapshot {
 	return {
@@ -125,7 +136,8 @@ function createAppleNotesSnapshot(): SourceSnapshot {
 
 test("gmail message paths render under account, year, and month folders", () => {
 	const renderer = createMarkdownRenderer();
-	const document = renderer.render(createGmailSnapshot());
+	const snapshot = createGmailSnapshot();
+	const document = renderer.render(snapshot, getPlugin(snapshot.connectorId));
 
 	expect(document.relativePath).toBe(
 		"gmail/owner-example-com/2026/03/launch-status-update-msg-123.md",
@@ -135,15 +147,16 @@ test("gmail message paths render under account, year, and month folders", () => 
 test("renderer exposes connector-specific versions", () => {
 	const renderer = createMarkdownRenderer();
 
-	expect(renderer.getVersion("notion")).toBe("1");
-	expect(renderer.getVersion("gmail")).toBe("1");
-	expect(renderer.getVersion("google-calendar")).toBe("1");
-	expect(renderer.getVersion("apple-notes")).toBe("1");
+	expect(renderer.getVersion(getPlugin("notion"))).toBe("1");
+	expect(renderer.getVersion(getPlugin("gmail"))).toBe("1");
+	expect(renderer.getVersion(getPlugin("google-calendar"))).toBe("1");
+	expect(renderer.getVersion(getPlugin("apple-notes"))).toBe("1");
 });
 
 test("calendar paths use event ids for filenames when available", () => {
 	const renderer = createMarkdownRenderer();
-	const document = renderer.render(createCalendarSnapshot());
+	const snapshot = createCalendarSnapshot();
+	const document = renderer.render(snapshot, getPlugin(snapshot.connectorId));
 
 	expect(document.relativePath).toBe(
 		"google-calendar/primary-calendar/2026/03/weekly-review-event-123.md",
@@ -152,7 +165,8 @@ test("calendar paths use event ids for filenames when available", () => {
 
 test("notion database item paths omit integration ids", () => {
 	const renderer = createMarkdownRenderer();
-	const document = renderer.render(createNotionSnapshot());
+	const snapshot = createNotionSnapshot();
+	const document = renderer.render(snapshot, getPlugin(snapshot.connectorId));
 
 	expect(document.relativePath).toBe(
 		"notion/databases/projects/roadmap-page-123.md",
@@ -161,7 +175,8 @@ test("notion database item paths omit integration ids", () => {
 
 test("apple notes paths include account and folder", () => {
 	const renderer = createMarkdownRenderer();
-	const document = renderer.render(createAppleNotesSnapshot());
+	const snapshot = createAppleNotesSnapshot();
+	const document = renderer.render(snapshot, getPlugin(snapshot.connectorId));
 
 	expect(document.relativePath).toBe(
 		"apple-notes/personal-icloud/work/scratchpad/daily-notes-note-id-123.md",
@@ -170,7 +185,8 @@ test("apple notes paths include account and folder", () => {
 
 test("gmail frontmatter includes gmail metadata fields", () => {
 	const renderer = createMarkdownRenderer();
-	const document = renderer.render(createGmailSnapshot());
+	const snapshot = createGmailSnapshot();
+	const document = renderer.render(snapshot, getPlugin(snapshot.connectorId));
 
 	expect(document.contents).not.toMatch(/^archived:/m);
 	expect(document.contents).not.toMatch(/^integration_id:/m);
@@ -193,7 +209,7 @@ test("gmail frontmatter includes gmail metadata fields", () => {
 
 test("gmail account path segments are slugified from the raw email", () => {
 	const renderer = createMarkdownRenderer();
-	const document = renderer.render({
+	const snapshot = {
 		...createGmailSnapshot(),
 		pathHint: {
 			kind: "message",
@@ -203,7 +219,8 @@ test("gmail account path segments are slugified from the raw email", () => {
 			...createGmailSnapshot().metadata,
 			gmailAccountEmail: " User.Name+Alias@Example.COM ",
 		},
-	});
+	};
+	const document = renderer.render(snapshot, getPlugin(snapshot.connectorId));
 
 	expect(document.relativePath).toBe(
 		"gmail/user-name-alias-example-com/2026/03/launch-status-update-msg-123.md",
@@ -212,7 +229,8 @@ test("gmail account path segments are slugified from the raw email", () => {
 
 test("notion frontmatter excludes archived while keeping notion metadata fields", () => {
 	const renderer = createMarkdownRenderer();
-	const document = renderer.render(createNotionSnapshot());
+	const snapshot = createNotionSnapshot();
+	const document = renderer.render(snapshot, getPlugin(snapshot.connectorId));
 
 	expect(document.contents).not.toMatch(/^archived:/m);
 	expect(document.contents).not.toMatch(/^integration_id:/m);
@@ -230,7 +248,8 @@ test("notion frontmatter excludes archived while keeping notion metadata fields"
 
 test("apple notes frontmatter stays user-facing", () => {
 	const renderer = createMarkdownRenderer();
-	const document = renderer.render(createAppleNotesSnapshot());
+	const snapshot = createAppleNotesSnapshot();
+	const document = renderer.render(snapshot, getPlugin(snapshot.connectorId));
 
 	expect(document.contents).toMatch(/^folder: "Work\/Scratchpad"$/m);
 	expect(document.contents).not.toMatch(/^folder_path:/m);
@@ -239,7 +258,7 @@ test("apple notes frontmatter stays user-facing", () => {
 
 test("notion frontmatter flattens normalized property keys", () => {
 	const renderer = createMarkdownRenderer();
-	const document = renderer.render({
+	const snapshot = {
 		...createNotionSnapshot(),
 		metadata: {
 			...createNotionSnapshot().metadata,
@@ -254,7 +273,8 @@ test("notion frontmatter flattens normalized property keys", () => {
 				},
 			},
 		},
-	});
+	};
+	const document = renderer.render(snapshot, getPlugin(snapshot.connectorId));
 
 	expect(document.contents).toMatch(/^due_date: "2026-03-17"$/m);
 	expect(document.contents).toMatch(/^담당자_이름: "홍길동"$/m);
@@ -267,7 +287,7 @@ test("notion frontmatter flattens normalized property keys", () => {
 
 test("notion property collisions overwrite frontmatter fields only", () => {
 	const renderer = createMarkdownRenderer();
-	const document = renderer.render({
+	const snapshot = {
 		...createNotionSnapshot(),
 		metadata: {
 			...createNotionSnapshot().metadata,
@@ -277,7 +297,8 @@ test("notion property collisions overwrite frontmatter fields only", () => {
 				Created: "2026-03-01T00:00:00.000Z",
 			},
 		},
-	});
+	};
+	const document = renderer.render(snapshot, getPlugin(snapshot.connectorId));
 
 	expect(document.relativePath).toBe(
 		"notion/databases/projects/roadmap-page-123.md",
@@ -293,7 +314,8 @@ test("notion property collisions overwrite frontmatter fields only", () => {
 
 test("calendar frontmatter stays user-facing without syncdown namespacing", () => {
 	const renderer = createMarkdownRenderer();
-	const document = renderer.render(createCalendarSnapshot());
+	const snapshot = createCalendarSnapshot();
+	const document = renderer.render(snapshot, getPlugin(snapshot.connectorId));
 
 	expect(document.contents).toMatch(
 		/^source: "https:\/\/calendar\.google\.com\/event\?eid=123"$/m,

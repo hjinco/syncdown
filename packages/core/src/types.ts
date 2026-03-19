@@ -11,30 +11,73 @@ export type ExitCode = (typeof EXIT_CODES)[keyof typeof EXIT_CODES];
 
 export type SyncIntervalPreset = "5m" | "15m" | "1h" | "6h" | "24h";
 export type ProviderId = "google" | "notion";
-export type ConnectorId =
-	| "notion"
-	| "gmail"
-	| "google-calendar"
-	| "apple-notes";
-export type ConnectionKind =
-	| "google-account"
-	| "notion-token"
-	| "notion-oauth-account"
-	| "apple-notes-local";
+export type ConnectorId = string;
+export type ConnectionKind = string;
 
-export interface ProviderOAuthSetupMethodDescriptor {
+export interface BaseSetupMethodDescriptor {
+	connectionId?: string;
+	connectionKind?: ConnectionKind;
+	label?: string;
+}
+
+export interface ProviderOAuthSetupMethodDescriptor
+	extends BaseSetupMethodDescriptor {
 	kind: "provider-oauth";
 	providerId: ProviderId;
 	requiredScopes: readonly string[];
 }
 
-export interface TokenSetupMethodDescriptor {
+export interface TokenSetupMethodDescriptor extends BaseSetupMethodDescriptor {
 	kind: "token";
+	secretName?(connectionId: string): string;
+}
+
+export interface LocalSetupMethodDescriptor extends BaseSetupMethodDescriptor {
+	kind: "local";
+}
+
+export type ConnectorConfigFieldType =
+	| "boolean"
+	| "string"
+	| "number"
+	| "enum"
+	| "string-array"
+	| "async-multi-select"
+	| "interval";
+
+export interface ConnectorConfigOption {
+	value: string;
+	label: string;
+	description?: string;
+}
+
+export interface ConnectorOptionLoaderContext {
+	config: SyncdownConfig;
+	integration: IntegrationConfig;
+	connection: ConnectionConfig;
+	io: AppIo;
+	paths: AppPaths;
+	secrets: SecretsStore;
+	resolvedAuth: ResolvedConnectionAuth | null;
+}
+
+export type ConnectorOptionLoader = (
+	context: ConnectorOptionLoaderContext,
+) => Promise<ConnectorConfigOption[]>;
+
+export interface ConnectorConfigFieldDescriptor {
+	id: string;
+	label: string;
+	type: ConnectorConfigFieldType;
+	description?: string;
+	options?: readonly ConnectorConfigOption[];
+	loadOptions?: ConnectorOptionLoader;
 }
 
 export type SetupMethodDescriptor =
 	| ProviderOAuthSetupMethodDescriptor
-	| TokenSetupMethodDescriptor;
+	| TokenSetupMethodDescriptor
+	| LocalSetupMethodDescriptor;
 
 export interface OAuthAppConfig {
 	id: string;
@@ -71,6 +114,10 @@ export interface NotionOAuthConnectionConfig extends BaseConnectionConfig {
 
 export interface AppleNotesLocalConnectionConfig extends BaseConnectionConfig {
 	kind: "apple-notes-local";
+}
+
+export interface GenericConnectionConfig extends BaseConnectionConfig {
+	metadata?: Record<string, unknown>;
 }
 
 export type ConnectionConfig =
@@ -119,6 +166,9 @@ export type AppleNotesIntegrationConfig = BaseIntegrationConfig<
 	"apple-notes",
 	AppleNotesIntegrationSettings
 >;
+export interface GenericIntegrationConfig
+	extends BaseIntegrationConfig<string, Record<string, unknown>> {}
+
 export type IntegrationConfig =
 	| NotionIntegrationConfig
 	| GmailIntegrationConfig
@@ -250,6 +300,12 @@ export interface NotionResolvedAuth {
 	token: string;
 }
 
+export interface GenericTokenResolvedAuth {
+	kind: "token";
+	token: string;
+	connectionKind: ConnectionKind;
+}
+
 export interface NotionOAuthResolvedAuth {
 	kind: "notion-oauth";
 	accessToken: string;
@@ -262,6 +318,7 @@ export interface NotionOAuthResolvedAuth {
 
 export type ResolvedConnectionAuth =
 	| GoogleResolvedAuth
+	| GenericTokenResolvedAuth
 	| NotionResolvedAuth
 	| NotionOAuthResolvedAuth;
 
@@ -295,9 +352,51 @@ export interface Connector {
 	sync(request: ConnectorSyncRequest): Promise<ConnectorSyncResult>;
 }
 
+export interface ConnectorRenderHooks {
+	version: string;
+	buildRelativePath?(source: SourceSnapshot): string;
+	extendFrontmatter?(source: SourceSnapshot): Map<string, unknown>;
+}
+
+export interface ConnectorCliAliasContext {
+	config: SyncdownConfig;
+	io: AppIo;
+	paths: AppPaths;
+	secrets: SecretsStore;
+}
+
+export interface ConnectorCliAlias {
+	key: string;
+	secret?: boolean;
+	setValue(
+		context: ConnectorCliAliasContext,
+		rawValue: string,
+	): Promise<string>;
+	unsetValue?(context: ConnectorCliAliasContext): Promise<string>;
+}
+
+export interface ConnectorManifest {
+	id: ConnectorId;
+	label: string;
+	setupMethods: readonly SetupMethodDescriptor[];
+	supportedPlatforms?: readonly NodeJS.Platform[];
+	configFields?: readonly ConnectorConfigFieldDescriptor[];
+	cliAliases?: readonly ConnectorCliAlias[];
+}
+
+export interface ConnectorPlugin extends Connector {
+	manifest: ConnectorManifest;
+	render: ConnectorRenderHooks;
+	seedOAuthApps?(): OAuthAppConfig[];
+	seedConnections?(): ConnectionConfig[];
+	seedIntegrations?(): IntegrationConfig[];
+	normalizeConnection?(entry: Partial<ConnectionConfig>): ConnectionConfig[];
+	normalizeIntegration?(entry: Partial<IntegrationConfig>): IntegrationConfig[];
+}
+
 export interface MarkdownRenderer {
-	getVersion(connectorId: ConnectorId): string;
-	render(source: SourceSnapshot): RenderedDocument;
+	getVersion(plugin: ConnectorPlugin): string;
+	render(source: SourceSnapshot, plugin: ConnectorPlugin): RenderedDocument;
 }
 
 export interface SinkWriteRequest {
@@ -494,7 +593,8 @@ export interface SyncSession {
 }
 
 export interface SyncdownServices {
-	connectors: Connector[];
+	plugins?: ConnectorPlugin[];
+	connectors?: Connector[];
 	renderer: MarkdownRenderer;
 	sink: DocumentSink;
 	state: StateStore;
