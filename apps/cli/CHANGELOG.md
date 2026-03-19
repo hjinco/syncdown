@@ -1,5 +1,13 @@
 # @syncdown/cli
 
+## 0.2.1
+
+### Patch Changes
+
+- f0e6ee1: Refactor the CLI command implementation by extracting config handling, status overview rendering, and run option parsing into focused modules.
+- bd6890d: refactor the CLI TUI config flow to use dedicated auth, route, and runtime controllers
+- edce903: refactor connectors to use plugin manifests and shared connector metadata
+
 ## 0.2.0
 
 ### Minor Changes
