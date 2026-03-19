@@ -1,4 +1,4 @@
-import type { AppPaths } from "@syncdown/core";
+import type { AppPaths, SyncRuntimeSnapshot } from "@syncdown/core";
 import { EXIT_CODES } from "@syncdown/core";
 import type { ConfigTuiRequest } from "./index.js";
 import type { DraftState } from "./state.js";
@@ -17,10 +17,10 @@ import {
 	setNotice,
 } from "./view-state.js";
 
-function isSyncSnapshotBusy(route: SyncDashboardRoute): boolean {
+function isSyncSnapshotBusy(snapshot: SyncRuntimeSnapshot): boolean {
 	return (
-		route.snapshot.watch.active ||
-		route.snapshot.integrations.some(
+		snapshot.watch.active ||
+		snapshot.integrations.some(
 			(integration) => integration.running || integration.queuedImmediateRun,
 		)
 	);
@@ -57,13 +57,7 @@ export function createConfigRuntimeController(
 			}
 
 			const snapshot = deps.request.session.getSnapshot();
-			if (
-				snapshot.watch.active ||
-				snapshot.integrations.some(
-					(integration) =>
-						integration.running || integration.queuedImmediateRun,
-				)
-			) {
+			if (isSyncSnapshotBusy(snapshot)) {
 				setNotice(deps.ui, {
 					kind: "error",
 					text: "Stop the current sync before resetting app data.",
@@ -88,13 +82,7 @@ export function createConfigRuntimeController(
 			}
 
 			const snapshot = deps.request.session.getSnapshot();
-			if (
-				snapshot.watch.active ||
-				snapshot.integrations.some(
-					(integration) =>
-						integration.running || integration.queuedImmediateRun,
-				)
-			) {
+			if (isSyncSnapshotBusy(snapshot)) {
 				setNotice(deps.ui, {
 					kind: "error",
 					text: "Stop the current sync before resetting app data.",
@@ -204,7 +192,10 @@ export function createConfigRuntimeController(
 				return;
 			}
 
-			if (isSyncSnapshotBusy(route) && selection !== "cancelActiveRun") {
+			if (
+				isSyncSnapshotBusy(route.snapshot) &&
+				selection !== "cancelActiveRun"
+			) {
 				setNotice(deps.ui, {
 					kind: "error",
 					text: "Stop the current sync before using other actions.",
@@ -397,7 +388,7 @@ export function createConfigRuntimeController(
 
 			if (
 				route.id === "syncDashboard" &&
-				(route.busy || isSyncSnapshotBusy(route))
+				(route.busy || isSyncSnapshotBusy(route.snapshot))
 			) {
 				setNotice(deps.ui, {
 					kind: "error",
