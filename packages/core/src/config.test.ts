@@ -3,6 +3,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
 	ensureAppDirectories,
+	ensureConfig,
 	readConfig,
 	resolveAppPaths,
 	validateManagedOutputDirectory,
@@ -38,6 +39,24 @@ test("readConfig returns defaults when config file is missing", async () => {
 		expect(
 			isGmailIntegration(gmail) ? gmail.config.syncFilter : undefined,
 		).toBe("primary");
+	} finally {
+		await cleanup();
+	}
+});
+
+test("ensureConfig writes a missing config file and keeps default integration ids stable", async () => {
+	const { cleanup, paths } = await createTestPaths();
+
+	try {
+		await rm(paths.configPath, { force: true });
+
+		const initial = await ensureConfig(paths);
+		const reloaded = await ensureConfig(paths);
+
+		expect(await Bun.file(paths.configPath).exists()).toBe(true);
+		expect(reloaded.integrations.map((integration) => integration.id)).toEqual(
+			initial.integrations.map((integration) => integration.id),
+		);
 	} finally {
 		await cleanup();
 	}

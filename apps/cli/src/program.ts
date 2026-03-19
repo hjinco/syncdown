@@ -1,12 +1,11 @@
-import { createAppleNotesConnector } from "@syncdown/connector-apple-notes";
-import { createGmailConnector } from "@syncdown/connector-gmail";
-import { createGoogleCalendarConnector } from "@syncdown/connector-google-calendar";
-import { createNotionConnector } from "@syncdown/connector-notion";
+import {
+	createBuiltinConnectorPlugins,
+	createConnectorAliasMap,
+} from "@syncdown/connectors";
 import type {
 	AppIo,
 	ApplyUpdateResult,
 	ConnectorId,
-	GmailSyncFilter,
 	RunOptions,
 	SelfUpdater,
 	SyncdownApp,
@@ -23,16 +22,13 @@ import {
 	DEFAULT_NOTION_TOKEN_CONNECTION_ID,
 	EXIT_CODES,
 	ensureAppDirectories,
-	GOOGLE_SECRET_NAMES,
+	ensureConfig,
 	getDefaultIntegration,
-	getNotionOAuthAppSecretNames,
-	getNotionOAuthConnectionSecretNames,
 	hasGoogleCredentials,
 	hasNotionOAuthConnectionCredentials,
 	isAppleNotesIntegration,
 	isCalendarIntegration,
 	isGmailIntegration,
-	readConfig,
 	resolveAppPaths,
 	validateManagedOutputDirectory,
 	writeConfig,
@@ -54,9 +50,7 @@ function supportsAppleNotes(
 function getSupportedRunConnectorIds(
 	platform: NodeJS.Platform = process.platform,
 ): ConnectorId[] {
-	return supportsAppleNotes(platform)
-		? ["notion", "gmail", "google-calendar", "apple-notes"]
-		: ["notion", "gmail", "google-calendar"];
+	return createBuiltinConnectorPlugins(platform).map((plugin) => plugin.id);
 }
 
 function isSupportedRunConnectorId(
@@ -69,32 +63,10 @@ function isSupportedRunConnectorId(
 function getConfigSetKeys(
 	platform: NodeJS.Platform = process.platform,
 ): string[] {
-	const keys = [
+	return [
 		"outputDir",
-		"notion.enabled",
-		"notion.interval",
-		"notion.authMethod",
-		"notion.token",
-		"notion.oauth.clientId",
-		"notion.oauth.clientSecret",
-		"notion.oauth.refreshToken",
-		"gmail.enabled",
-		"gmail.interval",
-		"gmail.fetchConcurrency",
-		"gmail.syncFilter",
-		"googleCalendar.enabled",
-		"googleCalendar.interval",
-		"googleCalendar.selectedCalendarIds",
-		"google.clientId",
-		"google.clientSecret",
-		"google.refreshToken",
+		...createConnectorAliasMap(createBuiltinConnectorPlugins(platform)).keys(),
 	];
-
-	if (supportsAppleNotes(platform)) {
-		keys.splice(15, 0, "appleNotes.enabled", "appleNotes.interval");
-	}
-
-	return keys;
 }
 
 function getHelpLines(): string[] {
@@ -176,22 +148,6 @@ function isSyncIntervalPreset(value: string): value is SyncIntervalPreset {
 	return INTERVAL_PRESETS.includes(value as SyncIntervalPreset);
 }
 
-function parseBoolean(value: string): boolean | null {
-	if (value === "true") {
-		return true;
-	}
-
-	if (value === "false") {
-		return false;
-	}
-
-	return null;
-}
-
-function isGmailSyncFilter(value: string): value is GmailSyncFilter {
-	return value === "primary" || value === "primary-important";
-}
-
 async function readValueFromStdin(): Promise<string> {
 	const chunks: Buffer[] = [];
 	for await (const chunk of process.stdin) {
@@ -206,7 +162,7 @@ async function loadConfig(): Promise<{
 }> {
 	const paths = resolveAppPaths();
 	await ensureAppDirectories(paths);
-	const config = await readConfig(paths);
+	const config = await ensureConfig(paths, createBuiltinConnectorPlugins());
 	return { config, paths };
 }
 
@@ -238,15 +194,6 @@ function printResetUsage(io: AppIo): void {
 
 function isInteractiveTerminal(): boolean {
 	return Boolean(process.stdin.isTTY && process.stdout.isTTY);
-}
-
-function parsePositiveInteger(value: string): number | null {
-	if (!/^\d+$/.test(value)) {
-		return null;
-	}
-
-	const parsed = Number(value);
-	return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 function parseRunOptions(args: string[], io: AppIo): RunOptions | null {
@@ -437,17 +384,6 @@ function getAppleNotesIntegrationConfig(config: SyncdownConfig) {
 	return integration;
 }
 
-function parseCommaSeparatedIds(value: string): string[] {
-	return [
-		...new Set(
-			value
-				.split(",")
-				.map((item) => item.trim())
-				.filter((item) => item.length > 0),
-		),
-	];
-}
-
 async function handleConfigSet(
 	io: AppIo,
 	argv: string[],
@@ -463,239 +399,51 @@ async function handleConfigSet(
 
 	const value = rawValue === "--stdin" ? await readValueFromStdin() : rawValue;
 	const { config, paths } = await loadConfig();
+	const alias = createConnectorAliasMap(createBuiltinConnectorPlugins()).get(
+		key,
+	);
 
-	switch (key) {
-		case "outputDir": {
-			const nextValue = value.trim();
-			if (!nextValue) {
-				io.error("outputDir cannot be empty.");
-				return EXIT_CODES.CONFIG_ERROR;
-			}
-			const validationError = await validateManagedOutputDirectory(nextValue);
-			if (validationError) {
-				io.error(validationError);
-				return EXIT_CODES.CONFIG_ERROR;
-			}
-			config.outputDir = nextValue;
-			await writeConfig(paths, config);
-			io.write(`Set outputDir=${config.outputDir}`);
-			return EXIT_CODES.OK;
-		}
-		case "notion.enabled": {
-			const parsed = parseBoolean(value.trim());
-			if (parsed === null) {
-				io.error("notion.enabled must be `true` or `false`.");
-				return EXIT_CODES.CONFIG_ERROR;
-			}
-			getNotionIntegrationConfig(config).enabled = parsed;
-			await writeConfig(paths, config);
-			io.write(
-				`Set notion.enabled=${getNotionIntegrationConfig(config).enabled}`,
-			);
-			return EXIT_CODES.OK;
-		}
-		case "notion.authMethod": {
-			const nextValue = value.trim();
-			if (nextValue !== "token" && nextValue !== "oauth") {
-				io.error("notion.authMethod must be `token` or `oauth`.");
-				return EXIT_CODES.CONFIG_ERROR;
-			}
-			getNotionIntegrationConfig(config).connectionId =
-				nextValue === "oauth"
-					? DEFAULT_NOTION_OAUTH_CONNECTION_ID
-					: DEFAULT_NOTION_TOKEN_CONNECTION_ID;
-			await writeConfig(paths, config);
-			io.write(`Set notion.authMethod=${getNotionAuthMethod(config)}`);
-			return EXIT_CODES.OK;
-		}
-		case "notion.interval": {
-			const nextValue = value.trim();
-			if (!isSyncIntervalPreset(nextValue)) {
-				io.error(
-					`notion.interval must be one of: ${INTERVAL_PRESETS.join(", ")}`,
-				);
-				return EXIT_CODES.CONFIG_ERROR;
-			}
-			getNotionIntegrationConfig(config).interval = nextValue;
-			await writeConfig(paths, config);
-			io.write(
-				`Set notion.interval=${getNotionIntegrationConfig(config).interval}`,
-			);
-			return EXIT_CODES.OK;
-		}
-		case "notion.token": {
-			const nextValue = value.trim();
-			if (!nextValue) {
-				io.error("notion.token cannot be empty.");
-				return EXIT_CODES.CONFIG_ERROR;
-			}
-			await secrets.setSecret(
-				`connections.${DEFAULT_NOTION_TOKEN_CONNECTION_ID}.token`,
-				nextValue,
-				paths,
-			);
-			io.write("Stored notion.token in encrypted secrets store.");
-			return EXIT_CODES.OK;
-		}
-		case "notion.oauth.clientId":
-		case "notion.oauth.clientSecret":
-		case "notion.oauth.refreshToken": {
-			const nextValue = value.trim();
-			if (!nextValue) {
-				io.error(`${key} cannot be empty.`);
-				return EXIT_CODES.CONFIG_ERROR;
-			}
-			const mappedKey =
-				key === "notion.oauth.clientId"
-					? getNotionOAuthAppSecretNames(DEFAULT_NOTION_OAUTH_APP_ID).clientId
-					: key === "notion.oauth.clientSecret"
-						? getNotionOAuthAppSecretNames(DEFAULT_NOTION_OAUTH_APP_ID)
-								.clientSecret
-						: getNotionOAuthConnectionSecretNames(
-								DEFAULT_NOTION_OAUTH_CONNECTION_ID,
-							).refreshToken;
-			await secrets.setSecret(mappedKey, nextValue, paths);
-			io.write(`Stored ${key} in encrypted secrets store.`);
-			return EXIT_CODES.OK;
-		}
-		case "gmail.enabled": {
-			const parsed = parseBoolean(value.trim());
-			if (parsed === null) {
-				io.error("gmail.enabled must be `true` or `false`.");
-				return EXIT_CODES.CONFIG_ERROR;
-			}
-			getGmailIntegrationConfig(config).enabled = parsed;
-			await writeConfig(paths, config);
-			io.write(
-				`Set gmail.enabled=${getGmailIntegrationConfig(config).enabled}`,
-			);
-			return EXIT_CODES.OK;
-		}
-		case "gmail.interval": {
-			const nextValue = value.trim();
-			if (!isSyncIntervalPreset(nextValue)) {
-				io.error(
-					`gmail.interval must be one of: ${INTERVAL_PRESETS.join(", ")}`,
-				);
-				return EXIT_CODES.CONFIG_ERROR;
-			}
-			getGmailIntegrationConfig(config).interval = nextValue;
-			await writeConfig(paths, config);
-			io.write(
-				`Set gmail.interval=${getGmailIntegrationConfig(config).interval}`,
-			);
-			return EXIT_CODES.OK;
-		}
-		case "gmail.fetchConcurrency": {
-			const parsed = parsePositiveInteger(value.trim());
-			if (parsed === null) {
-				io.error("gmail.fetchConcurrency must be a positive integer.");
-				return EXIT_CODES.CONFIG_ERROR;
-			}
-			getGmailIntegrationConfig(config).config.fetchConcurrency = parsed;
-			await writeConfig(paths, config);
-			io.write(
-				`Set gmail.fetchConcurrency=${getGmailIntegrationConfig(config).config.fetchConcurrency}`,
-			);
-			return EXIT_CODES.OK;
-		}
-		case "gmail.syncFilter": {
-			const nextValue = value.trim();
-			if (!isGmailSyncFilter(nextValue)) {
-				io.error(
-					"gmail.syncFilter must be one of: primary, primary-important.",
-				);
-				return EXIT_CODES.CONFIG_ERROR;
-			}
-			getGmailIntegrationConfig(config).config.syncFilter = nextValue;
-			await writeConfig(paths, config);
-			io.write(
-				`Set gmail.syncFilter=${getGmailIntegrationConfig(config).config.syncFilter}`,
-			);
-			return EXIT_CODES.OK;
-		}
-		case "googleCalendar.enabled": {
-			const parsed = parseBoolean(value.trim());
-			if (parsed === null) {
-				io.error("googleCalendar.enabled must be `true` or `false`.");
-				return EXIT_CODES.CONFIG_ERROR;
-			}
-			getGoogleCalendarIntegrationConfig(config).enabled = parsed;
-			await writeConfig(paths, config);
-			io.write(
-				`Set googleCalendar.enabled=${getGoogleCalendarIntegrationConfig(config).enabled}`,
-			);
-			return EXIT_CODES.OK;
-		}
-		case "googleCalendar.interval": {
-			const nextValue = value.trim();
-			if (!isSyncIntervalPreset(nextValue)) {
-				io.error(
-					`googleCalendar.interval must be one of: ${INTERVAL_PRESETS.join(", ")}`,
-				);
-				return EXIT_CODES.CONFIG_ERROR;
-			}
-			getGoogleCalendarIntegrationConfig(config).interval = nextValue;
-			await writeConfig(paths, config);
-			io.write(
-				`Set googleCalendar.interval=${getGoogleCalendarIntegrationConfig(config).interval}`,
-			);
-			return EXIT_CODES.OK;
-		}
-		case "googleCalendar.selectedCalendarIds": {
-			const selectedCalendarIds = parseCommaSeparatedIds(value.trim());
-			getGoogleCalendarIntegrationConfig(config).config.selectedCalendarIds =
-				selectedCalendarIds;
-			await writeConfig(paths, config);
-			io.write(
-				`Set googleCalendar.selectedCalendarIds=${selectedCalendarIds.join(",")}`,
-			);
-			return EXIT_CODES.OK;
-		}
-		case "appleNotes.enabled": {
-			const parsed = parseBoolean(value.trim());
-			if (parsed === null) {
-				io.error("appleNotes.enabled must be `true` or `false`.");
-				return EXIT_CODES.CONFIG_ERROR;
-			}
-			getAppleNotesIntegrationConfig(config).enabled = parsed;
-			await writeConfig(paths, config);
-			io.write(
-				`Set appleNotes.enabled=${getAppleNotesIntegrationConfig(config).enabled}`,
-			);
-			return EXIT_CODES.OK;
-		}
-		case "appleNotes.interval": {
-			const nextValue = value.trim();
-			if (!isSyncIntervalPreset(nextValue)) {
-				io.error(
-					`appleNotes.interval must be one of: ${INTERVAL_PRESETS.join(", ")}`,
-				);
-				return EXIT_CODES.CONFIG_ERROR;
-			}
-			getAppleNotesIntegrationConfig(config).interval = nextValue;
-			await writeConfig(paths, config);
-			io.write(
-				`Set appleNotes.interval=${getAppleNotesIntegrationConfig(config).interval}`,
-			);
-			return EXIT_CODES.OK;
-		}
-		case GOOGLE_SECRET_NAMES.clientId:
-		case GOOGLE_SECRET_NAMES.clientSecret:
-		case GOOGLE_SECRET_NAMES.refreshToken: {
-			const nextValue = value.trim();
-			if (!nextValue) {
-				io.error(`${key} cannot be empty.`);
-				return EXIT_CODES.CONFIG_ERROR;
-			}
-			await secrets.setSecret(key, nextValue, paths);
-			io.write(`Stored ${key} in encrypted secrets store.`);
-			return EXIT_CODES.OK;
-		}
-		default:
-			io.error(`Unknown config key: ${key}`);
-			printConfigSetUsage(io);
+	if (key === "outputDir") {
+		const nextValue = value.trim();
+		if (!nextValue) {
+			io.error("outputDir cannot be empty.");
 			return EXIT_CODES.CONFIG_ERROR;
+		}
+		const validationError = await validateManagedOutputDirectory(nextValue);
+		if (validationError) {
+			io.error(validationError);
+			return EXIT_CODES.CONFIG_ERROR;
+		}
+		config.outputDir = nextValue;
+		await writeConfig(paths, config);
+		io.write(`Set outputDir=${config.outputDir}`);
+		return EXIT_CODES.OK;
+	}
+
+	if (!alias) {
+		io.error(`Unknown config key: ${key}`);
+		printConfigSetUsage(io);
+		return EXIT_CODES.CONFIG_ERROR;
+	}
+
+	try {
+		const message = await alias.setValue(
+			{
+				config,
+				io,
+				paths,
+				secrets,
+			},
+			value,
+		);
+		if (!alias.secret) {
+			await writeConfig(paths, config);
+		}
+		io.write(message);
+		return EXIT_CODES.OK;
+	} catch (error) {
+		io.error(error instanceof Error ? error.message : `Failed to set ${key}.`);
+		return EXIT_CODES.CONFIG_ERROR;
 	}
 }
 
@@ -712,56 +460,40 @@ async function handleConfigUnset(
 	}
 
 	const { config, paths } = await loadConfig();
+	const alias = createConnectorAliasMap(createBuiltinConnectorPlugins()).get(
+		key,
+	);
 
-	switch (key) {
-		case "outputDir":
-			delete config.outputDir;
+	if (key === "outputDir") {
+		delete config.outputDir;
+		await writeConfig(paths, config);
+		io.write("Removed outputDir.");
+		return EXIT_CODES.OK;
+	}
+
+	if (!alias?.unsetValue) {
+		io.error(`Unknown config key: ${key}`);
+		printConfigUnsetUsage(io);
+		return EXIT_CODES.CONFIG_ERROR;
+	}
+
+	try {
+		const message = await alias.unsetValue({
+			config,
+			io,
+			paths,
+			secrets,
+		});
+		if (!alias.secret) {
 			await writeConfig(paths, config);
-			io.write("Removed outputDir.");
-			return EXIT_CODES.OK;
-		case "notion.token":
-			await secrets.deleteSecret(
-				`connections.${DEFAULT_NOTION_TOKEN_CONNECTION_ID}.token`,
-				paths,
-			);
-			io.write("Removed notion.token from encrypted secrets store.");
-			return EXIT_CODES.OK;
-		case "notion.oauth.clientId":
-			await secrets.deleteSecret(
-				getNotionOAuthAppSecretNames(DEFAULT_NOTION_OAUTH_APP_ID).clientId,
-				paths,
-			);
-			io.write("Removed notion.oauth.clientId from encrypted secrets store.");
-			return EXIT_CODES.OK;
-		case "notion.oauth.clientSecret":
-			await secrets.deleteSecret(
-				getNotionOAuthAppSecretNames(DEFAULT_NOTION_OAUTH_APP_ID).clientSecret,
-				paths,
-			);
-			io.write(
-				"Removed notion.oauth.clientSecret from encrypted secrets store.",
-			);
-			return EXIT_CODES.OK;
-		case "notion.oauth.refreshToken":
-			await secrets.deleteSecret(
-				getNotionOAuthConnectionSecretNames(DEFAULT_NOTION_OAUTH_CONNECTION_ID)
-					.refreshToken,
-				paths,
-			);
-			io.write(
-				"Removed notion.oauth.refreshToken from encrypted secrets store.",
-			);
-			return EXIT_CODES.OK;
-		case GOOGLE_SECRET_NAMES.clientId:
-		case GOOGLE_SECRET_NAMES.clientSecret:
-		case GOOGLE_SECRET_NAMES.refreshToken:
-			await secrets.deleteSecret(key, paths);
-			io.write(`Removed ${key} from encrypted secrets store.`);
-			return EXIT_CODES.OK;
-		default:
-			io.error(`Unknown config key: ${key}`);
-			printConfigUnsetUsage(io);
-			return EXIT_CODES.CONFIG_ERROR;
+		}
+		io.write(message);
+		return EXIT_CODES.OK;
+	} catch (error) {
+		io.error(
+			error instanceof Error ? error.message : `Failed to unset ${key}.`,
+		);
+		return EXIT_CODES.CONFIG_ERROR;
 	}
 }
 
@@ -1032,12 +764,7 @@ export async function runCli(
 	const app =
 		dependencies.app ??
 		createSyncdownApp({
-			connectors: [
-				createNotionConnector(),
-				createGmailConnector(),
-				createGoogleCalendarConnector(),
-				...(supportsAppleNotes() ? [createAppleNotesConnector()] : []),
-			],
+			plugins: createBuiltinConnectorPlugins(),
 			renderer: createMarkdownRenderer(),
 			sink: createFileSystemSink(),
 			state: createStateStore(),

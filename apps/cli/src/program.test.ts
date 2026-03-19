@@ -7,9 +7,9 @@ import {
 	type AppSnapshot,
 	createDefaultConfig,
 	EXIT_CODES,
+	ensureConfig,
 	getDefaultIntegration,
 	type RunOptions,
-	readConfig,
 	resolveAppPaths,
 	type SecretsStore,
 	type SelfUpdater,
@@ -535,7 +535,7 @@ test("config set stores gmail.syncFilter in the config file", async () => {
 		expect(exitCode).toBe(EXIT_CODES.OK);
 		expect(errors).toEqual([]);
 		expect(writes).toContain("Set gmail.syncFilter=primary-important");
-		const config = await readConfig(paths);
+		const config = await ensureConfig(paths);
 		const gmail = getDefaultIntegration(config, "gmail");
 		if (gmail.connectorId !== "gmail") {
 			throw new Error("expected gmail integration");
@@ -566,7 +566,7 @@ test("config set rejects a non-empty outputDir", async () => {
 		expect(errors).toContain(
 			"Output folder must be completely empty before syncdown can use it.",
 		);
-		expect((await readConfig(paths)).outputDir).toBeUndefined();
+		expect((await ensureConfig(paths)).outputDir).toBeUndefined();
 	});
 });
 
@@ -624,7 +624,7 @@ test("config set stores googleCalendar.selectedCalendarIds in the config file", 
 		expect(writes).toContain(
 			"Set googleCalendar.selectedCalendarIds=primary,work@example.com",
 		);
-		const config = await readConfig(paths);
+		const config = await ensureConfig(paths);
 		const googleCalendar = getDefaultIntegration(config, "google-calendar");
 		if (googleCalendar.connectorId !== "google-calendar") {
 			throw new Error("expected google calendar integration");

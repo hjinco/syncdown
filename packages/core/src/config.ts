@@ -3,9 +3,12 @@ import { access, mkdir, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { createDefaultConfig, normalizeConfig } from "./config-model.js";
-import type { AppIo, AppPaths, SyncdownConfig } from "./types.js";
-
-const DEFAULT_CONFIG: SyncdownConfig = createDefaultConfig();
+import type {
+	AppIo,
+	AppPaths,
+	ConnectorPlugin,
+	SyncdownConfig,
+} from "./types.js";
 
 interface PathResolutionRuntime {
 	env: NodeJS.ProcessEnv;
@@ -88,15 +91,32 @@ function resolveHomeDirectory(
 	return home;
 }
 
-export async function readConfig(paths: AppPaths): Promise<SyncdownConfig> {
+export async function readConfig(
+	paths: AppPaths,
+	plugins: readonly ConnectorPlugin[] = [],
+): Promise<SyncdownConfig> {
 	const configFile = Bun.file(paths.configPath);
 	if (!(await configFile.exists())) {
-		return structuredClone(DEFAULT_CONFIG);
+		return structuredClone(createDefaultConfig(plugins));
 	}
 
 	const raw = await configFile.text();
 	const parsed = JSON.parse(raw) as Partial<SyncdownConfig>;
-	return normalizeConfig(parsed);
+	return normalizeConfig(parsed, plugins);
+}
+
+export async function ensureConfig(
+	paths: AppPaths,
+	plugins: readonly ConnectorPlugin[] = [],
+): Promise<SyncdownConfig> {
+	const configFile = Bun.file(paths.configPath);
+	if (await configFile.exists()) {
+		return readConfig(paths, plugins);
+	}
+
+	const config = createDefaultConfig(plugins);
+	await writeConfig(paths, config);
+	return config;
 }
 
 export async function ensureAppDirectories(paths: AppPaths): Promise<void> {

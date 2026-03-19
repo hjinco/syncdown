@@ -2,10 +2,11 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { writeConfig } from "./config.js";
 import { createDefaultConfig, getDefaultIntegration } from "./config-model.js";
+import { defineConnectorPlugin } from "./plugin.js";
 import type {
 	AppIo,
 	AppPaths,
-	Connector,
+	ConnectorPlugin,
 	ConnectorSyncRequest,
 	ConnectorSyncResult,
 	DocumentSink,
@@ -133,8 +134,8 @@ export class StaticSecretsStore implements SecretsStore {
 }
 
 export class TestRenderer implements MarkdownRenderer {
-	getVersion(connectorId: SourceSnapshot["connectorId"]): string {
-		switch (connectorId) {
+	getVersion(plugin: ConnectorPlugin): string {
+		switch (plugin.id) {
 			case "notion":
 				return "test-renderer-notion-v1";
 			case "gmail":
@@ -144,11 +145,11 @@ export class TestRenderer implements MarkdownRenderer {
 			case "apple-notes":
 				return "test-renderer-apple-notes-v1";
 			default:
-				throw new Error(`Unsupported connector: ${connectorId}`);
+				throw new Error(`Unsupported connector: ${plugin.id}`);
 		}
 	}
 
-	render(document: SourceSnapshot): RenderedDocument {
+	render(document: SourceSnapshot, _plugin: ConnectorPlugin): RenderedDocument {
 		const relativePath =
 			document.pathHint.kind === "message"
 				? `${document.connectorId}/primary/${document.sourceId}.md`
@@ -224,8 +225,56 @@ export function createSource(
 export function createConnector(
 	id: "notion" | "gmail" | "google-calendar" | "apple-notes",
 	syncImpl?: (request: ConnectorSyncRequest) => Promise<ConnectorSyncResult>,
-): Connector {
-	return {
+): ConnectorPlugin {
+	const setupMethods =
+		id === "gmail"
+			? [
+					{
+						kind: "provider-oauth" as const,
+						providerId: "google" as const,
+						requiredScopes: ["https://www.googleapis.com/auth/gmail.readonly"],
+						connectionId: "google-account-default",
+						connectionKind: "google-account",
+					},
+				]
+			: id === "google-calendar"
+				? [
+						{
+							kind: "provider-oauth" as const,
+							providerId: "google" as const,
+							requiredScopes: [
+								"https://www.googleapis.com/auth/calendar.readonly",
+							],
+							connectionId: "google-account-default",
+							connectionKind: "google-account",
+						},
+					]
+				: id === "apple-notes"
+					? [
+							{
+								kind: "local" as const,
+								connectionId: "apple-notes-local-default",
+								connectionKind: "apple-notes-local",
+							},
+						]
+					: [
+							{
+								kind: "token" as const,
+								connectionId: "notion-token-default",
+								connectionKind: "notion-token",
+								secretName(connectionId: string) {
+									return `connections.${connectionId}.token`;
+								},
+							},
+							{
+								kind: "provider-oauth" as const,
+								providerId: "notion" as const,
+								requiredScopes: [],
+								connectionId: "notion-oauth-default",
+								connectionKind: "notion-oauth-account",
+							},
+						];
+	return defineConnectorPlugin({
 		id,
 		label:
 			id === "notion"
@@ -235,39 +284,7 @@ export function createConnector(
 					: id === "google-calendar"
 						? "Google Calendar"
 						: "Apple Notes",
-		setupMethods:
-			id === "gmail"
-				? [
-						{
-							kind: "provider-oauth",
-							providerId: "google",
-							requiredScopes: [
-								"https://www.googleapis.com/auth/gmail.readonly",
-							],
-						},
-					]
-				: id === "google-calendar"
-					? [
-							{
-								kind: "provider-oauth",
-								providerId: "google",
-								requiredScopes: [
-									"https://www.googleapis.com/auth/calendar.readonly",
-								],
-							},
-						]
-					: id === "apple-notes"
-						? []
-						: [
-								{
-									kind: "token",
-								},
-								{
-									kind: "provider-oauth",
-									providerId: "notion",
-									requiredScopes: [],
-								},
-							],
+		setupMethods,
 		async validate(): Promise<{ status: "ok"; message: string }> {
 			return { status: "ok", message: "credentials valid" };
 		},
@@ -285,7 +302,22 @@ export function createConnector(
 				nextCursor: `${id}-cursor`,
 			};
 		},
-	};
+		manifest: {
+			id,
+			label:
+				id === "notion"
+					? "Notion"
+					: id === "gmail"
+						? "Gmail"
+						: id === "google-calendar"
+							? "Google Calendar"
+							: "Apple Notes",
+			setupMethods,
+		},
+		render: {
+			version: `test-renderer-${id}-v1`,
+		},
+	});
 }
 
 export async function createTestPaths(): Promise<{

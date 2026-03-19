@@ -1,5 +1,5 @@
 import type {
-	ConnectorId,
+	ConnectorPlugin,
 	MarkdownRenderer,
 	RenderedDocument,
 	SourceSnapshot,
@@ -7,19 +7,21 @@ import type {
 
 import { stringifyFrontmatter } from "./frontmatter.js";
 import { buildRelativePath } from "./path-builder.js";
-import { MARKDOWN_RENDERER_VERSIONS } from "./versions.js";
 
 class DefaultMarkdownRenderer implements MarkdownRenderer {
-	getVersion(connectorId: ConnectorId): string {
-		return MARKDOWN_RENDERER_VERSIONS[connectorId];
+	getVersion(plugin: ConnectorPlugin): string {
+		return plugin.render.version;
 	}
 
-	render(document: SourceSnapshot): RenderedDocument {
+	render(document: SourceSnapshot, plugin: ConnectorPlugin): RenderedDocument {
+		const extraFrontmatter = plugin.render.extendFrontmatter?.(document);
 		return {
 			sourceId: document.sourceId,
 			title: document.title,
-			relativePath: buildRelativePath(document),
-			contents: `${stringifyFrontmatter(document)}${document.bodyMd}\n`,
+			relativePath:
+				plugin.render.buildRelativePath?.(document) ??
+				buildRelativePath(document),
+			contents: `${stringifyFrontmatter(document, extraFrontmatter)}${document.bodyMd}\n`,
 			sourceHash: document.sourceHash,
 		};
 	}

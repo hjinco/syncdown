@@ -5,9 +5,9 @@ import type {
 	CalendarIntegrationConfig,
 	ConnectionConfig,
 	ConnectionSummary,
-	Connector,
 	ConnectorDefinitionSummary,
 	ConnectorId,
+	ConnectorPlugin,
 	GmailIntegrationConfig,
 	GoogleAccountConnectionConfig,
 	IntegrationConfig,
@@ -25,7 +25,7 @@ export const DEFAULT_NOTION_TOKEN_CONNECTION_ID = "notion-token-default";
 export const DEFAULT_NOTION_OAUTH_CONNECTION_ID = "notion-oauth-default";
 export const DEFAULT_APPLE_NOTES_CONNECTION_ID = "apple-notes-local-default";
 
-export function createDefaultOAuthApps(): OAuthAppConfig[] {
+function getFallbackOAuthApps(): OAuthAppConfig[] {
 	return [
 		{
 			id: DEFAULT_GOOGLE_OAUTH_APP_ID,
@@ -40,7 +40,7 @@ export function createDefaultOAuthApps(): OAuthAppConfig[] {
 	];
 }
 
-export function createDefaultConnections(): ConnectionConfig[] {
+function getFallbackConnections(): ConnectionConfig[] {
 	return [
 		{
 			id: DEFAULT_GOOGLE_CONNECTION_ID,
@@ -67,7 +67,7 @@ export function createDefaultConnections(): ConnectionConfig[] {
 	];
 }
 
-export function createDefaultIntegrations(): IntegrationConfig[] {
+function getFallbackIntegrations(): IntegrationConfig[] {
 	return [
 		{
 			id: randomUUID(),
@@ -113,11 +113,69 @@ export function createDefaultIntegrations(): IntegrationConfig[] {
 	];
 }
 
-export function createDefaultConfig(): SyncdownConfig {
+function getConfigPlugins(
+	plugins: readonly ConnectorPlugin[] = [],
+): readonly ConnectorPlugin[] {
+	return plugins;
+}
+
+function mergeById<T extends { id: string }>(values: readonly T[]): T[] {
+	return [...values].reduceRight<T[]>((acc, value) => {
+		if (!acc.some((candidate) => candidate.id === value.id)) {
+			acc.unshift(value);
+		}
+		return acc;
+	}, []);
+}
+
+function mergeIntegrationsByConnector(
+	values: readonly IntegrationConfig[],
+): IntegrationConfig[] {
+	return [...values].reduceRight<IntegrationConfig[]>((acc, value) => {
+		if (!acc.some((candidate) => candidate.connectorId === value.connectorId)) {
+			acc.unshift(value);
+		}
+		return acc;
+	}, []);
+}
+
+export function createDefaultOAuthApps(
+	plugins: readonly ConnectorPlugin[] = [],
+): OAuthAppConfig[] {
+	const seeded = getConfigPlugins(plugins).flatMap(
+		(plugin) => plugin.seedOAuthApps?.() ?? [],
+	);
+	return mergeById([...seeded, ...getFallbackOAuthApps()]);
+}
+
+export function createDefaultConnections(
+	plugins: readonly ConnectorPlugin[] = [],
+): ConnectionConfig[] {
+	const seeded = getConfigPlugins(plugins).flatMap(
+		(plugin) => plugin.seedConnections?.() ?? [],
+	);
+	return mergeById([...seeded, ...getFallbackConnections()]);
+}
+
+export function createDefaultIntegrations(
+	plugins: readonly ConnectorPlugin[] = [],
+): IntegrationConfig[] {
+	const seeded = getConfigPlugins(plugins).flatMap(
+		(plugin) => plugin.seedIntegrations?.() ?? [],
+	);
+	return mergeIntegrationsByConnector([
+		...seeded,
+		...getFallbackIntegrations(),
+	]);
+}
+
+export function createDefaultConfig(
+	plugins: readonly ConnectorPlugin[] = [],
+): SyncdownConfig {
 	return {
-		oauthApps: createDefaultOAuthApps(),
-		connections: createDefaultConnections(),
-		integrations: createDefaultIntegrations(),
+		oauthApps: createDefaultOAuthApps(plugins),
+		connections: createDefaultConnections(plugins),
+		integrations: createDefaultIntegrations(plugins),
 	};
 }
 
@@ -227,12 +285,12 @@ export function isAppleNotesIntegration(
 }
 
 export function toConnectorDefinitions(
-	connectors: readonly Connector[],
+	plugins: readonly ConnectorPlugin[],
 ): ConnectorDefinitionSummary[] {
-	return connectors.map((connector) => ({
-		id: connector.id,
-		label: connector.label,
-		setupMethods: [...connector.setupMethods],
+	return plugins.map((plugin) => ({
+		id: plugin.id,
+		label: plugin.label,
+		setupMethods: [...plugin.setupMethods],
 	}));
 }
 
@@ -248,7 +306,7 @@ export function toConnectionSummaries(
 
 export function toIntegrationSummary(
 	integration: IntegrationConfig,
-	connector: Connector,
+	plugin: ConnectorPlugin,
 	lastSyncAt: string | null,
 ): IntegrationSummary {
 	return {
@@ -256,7 +314,7 @@ export function toIntegrationSummary(
 		connectorId: integration.connectorId,
 		connectionId: integration.connectionId,
 		label: integration.label,
-		setupMethods: [...connector.setupMethods],
+		setupMethods: [...plugin.setupMethods],
 		enabled: integration.enabled,
 		interval: integration.interval,
 		lastSyncAt,
@@ -265,8 +323,9 @@ export function toIntegrationSummary(
 
 export function normalizeConfig(
 	parsed: Partial<SyncdownConfig>,
+	plugins: readonly ConnectorPlugin[] = [],
 ): SyncdownConfig {
-	const defaults = createDefaultConfig();
+	const defaults = createDefaultConfig(plugins);
 	const outputDir =
 		typeof parsed.outputDir === "string" ? parsed.outputDir : undefined;
 
@@ -312,88 +371,14 @@ export function normalizeConfig(
 					return [];
 				}
 
-				const googleAccountCandidate =
-					candidate as Partial<GoogleAccountConnectionConfig>;
-				if (
-					candidate.kind === "google-account" &&
-					typeof googleAccountCandidate.oauthAppId === "string"
-				) {
-					return [
-						{
-							id: candidate.id,
-							kind: "google-account",
-							label: candidate.label,
-							oauthAppId: googleAccountCandidate.oauthAppId,
-							accountEmail:
-								typeof googleAccountCandidate.accountEmail === "string"
-									? googleAccountCandidate.accountEmail
-									: undefined,
-						},
-					];
+				for (const plugin of plugins) {
+					const normalized = plugin.normalizeConnection?.(candidate);
+					if (normalized && normalized.length > 0) {
+						return normalized;
+					}
 				}
 
-				if (candidate.kind === "notion-token") {
-					return [
-						{
-							id: candidate.id,
-							kind: "notion-token",
-							label: candidate.label,
-							workspaceName:
-								typeof (candidate as { workspaceName?: unknown })
-									.workspaceName === "string"
-									? (candidate as { workspaceName?: string }).workspaceName
-									: undefined,
-						},
-					];
-				}
-
-				if (candidate.kind === "apple-notes-local") {
-					return [
-						{
-							id: candidate.id,
-							kind: "apple-notes-local",
-							label: candidate.label,
-						},
-					];
-				}
-
-				const notionOauthCandidate =
-					candidate as Partial<NotionOAuthConnectionConfig>;
-				if (
-					candidate.kind === "notion-oauth-account" &&
-					typeof notionOauthCandidate.oauthAppId === "string"
-				) {
-					return [
-						{
-							id: candidate.id,
-							kind: "notion-oauth-account",
-							label: candidate.label,
-							oauthAppId: notionOauthCandidate.oauthAppId,
-							workspaceId:
-								typeof notionOauthCandidate.workspaceId === "string"
-									? notionOauthCandidate.workspaceId
-									: undefined,
-							workspaceName:
-								typeof notionOauthCandidate.workspaceName === "string"
-									? notionOauthCandidate.workspaceName
-									: undefined,
-							botId:
-								typeof notionOauthCandidate.botId === "string"
-									? notionOauthCandidate.botId
-									: undefined,
-							ownerUserId:
-								typeof notionOauthCandidate.ownerUserId === "string"
-									? notionOauthCandidate.ownerUserId
-									: undefined,
-							ownerUserName:
-								typeof notionOauthCandidate.ownerUserName === "string"
-									? notionOauthCandidate.ownerUserName
-									: undefined,
-						},
-					];
-				}
-
-				return [];
+				return normalizeLegacyConnection(candidate);
 			})
 		: defaults.connections;
 
@@ -418,104 +403,204 @@ export function normalizeConfig(
 					return [];
 				}
 
-				if (candidate.connectorId === "notion") {
-					return [
-						{
-							id: candidate.id,
-							connectorId: "notion",
-							connectionId: candidate.connectionId,
-							label: candidate.label,
-							enabled: candidate.enabled,
-							interval: candidate.interval,
-							config: {},
-						},
-					];
+				for (const plugin of plugins) {
+					const normalized = plugin.normalizeIntegration?.(candidate);
+					if (normalized && normalized.length > 0) {
+						return normalized;
+					}
 				}
 
-				if (candidate.connectorId === "gmail") {
-					const settings = (candidate as Partial<GmailIntegrationConfig>)
-						.config;
-					return [
-						{
-							id: candidate.id,
-							connectorId: "gmail",
-							connectionId: candidate.connectionId,
-							label: candidate.label,
-							enabled: candidate.enabled,
-							interval: candidate.interval,
-							config: {
-								fetchConcurrency:
-									typeof settings?.fetchConcurrency === "number"
-										? settings.fetchConcurrency
-										: 10,
-								syncFilter:
-									settings?.syncFilter === "primary-important"
-										? "primary-important"
-										: "primary",
-							},
-						},
-					];
-				}
-
-				if (candidate.connectorId === "google-calendar") {
-					const settings = (candidate as Partial<CalendarIntegrationConfig>)
-						.config;
-					return [
-						{
-							id: candidate.id,
-							connectorId: "google-calendar",
-							connectionId: candidate.connectionId,
-							label: candidate.label,
-							enabled: candidate.enabled,
-							interval: candidate.interval,
-							config: {
-								selectedCalendarIds: Array.isArray(
-									settings?.selectedCalendarIds,
-								)
-									? [
-											...new Set(
-												settings.selectedCalendarIds.filter(
-													(value): value is string =>
-														typeof value === "string" &&
-														value.trim().length > 0,
-												),
-											),
-										]
-									: [],
-							},
-						},
-					];
-				}
-
-				if (candidate.connectorId === "apple-notes") {
-					return [
-						{
-							id: candidate.id,
-							connectorId: "apple-notes",
-							connectionId: candidate.connectionId,
-							label: candidate.label,
-							enabled: candidate.enabled,
-							interval: candidate.interval,
-							config: {},
-						},
-					];
-				}
-
-				return [];
+				return normalizeLegacyIntegration(candidate);
 			})
 		: defaults.integrations;
 
 	return {
 		outputDir,
-		oauthApps: ensureSeededOauthApps(oauthApps),
-		connections: ensureSeededConnections(connections),
-		integrations: ensureSeededIntegrations(integrations),
+		oauthApps: ensureSeededOauthApps(oauthApps, plugins),
+		connections: ensureSeededConnections(connections, plugins),
+		integrations: ensureSeededIntegrations(integrations, plugins),
 	};
 }
 
-function ensureSeededOauthApps(oauthApps: OAuthAppConfig[]): OAuthAppConfig[] {
+function normalizeLegacyConnection(
+	candidate: Partial<ConnectionConfig>,
+): ConnectionConfig[] {
+	const googleAccountCandidate =
+		candidate as Partial<GoogleAccountConnectionConfig>;
+	if (
+		candidate.kind === "google-account" &&
+		typeof googleAccountCandidate.oauthAppId === "string"
+	) {
+		return [
+			{
+				id: candidate.id ?? DEFAULT_GOOGLE_CONNECTION_ID,
+				kind: "google-account",
+				label: candidate.label ?? "Google Account",
+				oauthAppId: googleAccountCandidate.oauthAppId,
+				accountEmail:
+					typeof googleAccountCandidate.accountEmail === "string"
+						? googleAccountCandidate.accountEmail
+						: undefined,
+			},
+		];
+	}
+
+	if (candidate.kind === "notion-token") {
+		return [
+			{
+				id: candidate.id ?? DEFAULT_NOTION_TOKEN_CONNECTION_ID,
+				kind: "notion-token",
+				label: candidate.label ?? "Notion Token Connection",
+				workspaceName:
+					typeof (candidate as { workspaceName?: unknown }).workspaceName ===
+					"string"
+						? (candidate as { workspaceName?: string }).workspaceName
+						: undefined,
+			},
+		];
+	}
+
+	if (candidate.kind === "apple-notes-local") {
+		return [
+			{
+				id: candidate.id ?? DEFAULT_APPLE_NOTES_CONNECTION_ID,
+				kind: "apple-notes-local",
+				label: candidate.label ?? "Apple Notes Connection",
+			},
+		];
+	}
+
+	const notionOauthCandidate =
+		candidate as Partial<NotionOAuthConnectionConfig>;
+	if (
+		candidate.kind === "notion-oauth-account" &&
+		typeof notionOauthCandidate.oauthAppId === "string"
+	) {
+		return [
+			{
+				id: candidate.id ?? DEFAULT_NOTION_OAUTH_CONNECTION_ID,
+				kind: "notion-oauth-account",
+				label: candidate.label ?? "Notion OAuth Connection",
+				oauthAppId: notionOauthCandidate.oauthAppId,
+				workspaceId:
+					typeof notionOauthCandidate.workspaceId === "string"
+						? notionOauthCandidate.workspaceId
+						: undefined,
+				workspaceName:
+					typeof notionOauthCandidate.workspaceName === "string"
+						? notionOauthCandidate.workspaceName
+						: undefined,
+				botId:
+					typeof notionOauthCandidate.botId === "string"
+						? notionOauthCandidate.botId
+						: undefined,
+				ownerUserId:
+					typeof notionOauthCandidate.ownerUserId === "string"
+						? notionOauthCandidate.ownerUserId
+						: undefined,
+				ownerUserName:
+					typeof notionOauthCandidate.ownerUserName === "string"
+						? notionOauthCandidate.ownerUserName
+						: undefined,
+			},
+		];
+	}
+
+	return [];
+}
+
+function normalizeLegacyIntegration(
+	candidate: Partial<IntegrationConfig>,
+): IntegrationConfig[] {
+	if (candidate.connectorId === "notion") {
+		return [
+			{
+				id: candidate.id ?? randomUUID(),
+				connectorId: "notion",
+				connectionId:
+					candidate.connectionId ?? DEFAULT_NOTION_TOKEN_CONNECTION_ID,
+				label: candidate.label ?? "Notion",
+				enabled: candidate.enabled ?? false,
+				interval: candidate.interval ?? "1h",
+				config: {},
+			},
+		];
+	}
+
+	if (candidate.connectorId === "gmail") {
+		const settings = (candidate as Partial<GmailIntegrationConfig>).config;
+		return [
+			{
+				id: candidate.id ?? randomUUID(),
+				connectorId: "gmail",
+				connectionId: candidate.connectionId ?? DEFAULT_GOOGLE_CONNECTION_ID,
+				label: candidate.label ?? "Gmail",
+				enabled: candidate.enabled ?? false,
+				interval: candidate.interval ?? "1h",
+				config: {
+					fetchConcurrency:
+						typeof settings?.fetchConcurrency === "number"
+							? settings.fetchConcurrency
+							: 10,
+					syncFilter:
+						settings?.syncFilter === "primary-important"
+							? "primary-important"
+							: "primary",
+				},
+			},
+		];
+	}
+
+	if (candidate.connectorId === "google-calendar") {
+		const settings = (candidate as Partial<CalendarIntegrationConfig>).config;
+		return [
+			{
+				id: candidate.id ?? randomUUID(),
+				connectorId: "google-calendar",
+				connectionId: candidate.connectionId ?? DEFAULT_GOOGLE_CONNECTION_ID,
+				label: candidate.label ?? "Google Calendar",
+				enabled: candidate.enabled ?? false,
+				interval: candidate.interval ?? "1h",
+				config: {
+					selectedCalendarIds: Array.isArray(settings?.selectedCalendarIds)
+						? [
+								...new Set(
+									settings.selectedCalendarIds.filter(
+										(value): value is string =>
+											typeof value === "string" && value.trim().length > 0,
+									),
+								),
+							]
+						: [],
+				},
+			},
+		];
+	}
+
+	if (candidate.connectorId === "apple-notes") {
+		return [
+			{
+				id: candidate.id ?? randomUUID(),
+				connectorId: "apple-notes",
+				connectionId:
+					candidate.connectionId ?? DEFAULT_APPLE_NOTES_CONNECTION_ID,
+				label: candidate.label ?? "Apple Notes",
+				enabled: candidate.enabled ?? false,
+				interval: candidate.interval ?? "1h",
+				config: {},
+			},
+		];
+	}
+
+	return [];
+}
+
+function ensureSeededOauthApps(
+	oauthApps: OAuthAppConfig[],
+	plugins: readonly ConnectorPlugin[] = [],
+): OAuthAppConfig[] {
 	const values = [...oauthApps];
-	const defaults = createDefaultOAuthApps();
+	const defaults = createDefaultOAuthApps(plugins);
 	for (const seed of defaults.reverse()) {
 		if (!values.some((oauthApp) => oauthApp.id === seed.id)) {
 			values.unshift(seed);
@@ -526,9 +611,10 @@ function ensureSeededOauthApps(oauthApps: OAuthAppConfig[]): OAuthAppConfig[] {
 
 function ensureSeededConnections(
 	connections: ConnectionConfig[],
+	plugins: readonly ConnectorPlugin[] = [],
 ): ConnectionConfig[] {
 	const values = [...connections];
-	const defaults = createDefaultConnections();
+	const defaults = createDefaultConnections(plugins);
 	for (const seed of defaults.reverse()) {
 		if (!values.some((connection) => connection.id === seed.id)) {
 			values.unshift(seed);
@@ -539,9 +625,10 @@ function ensureSeededConnections(
 
 function ensureSeededIntegrations(
 	integrations: IntegrationConfig[],
+	plugins: readonly ConnectorPlugin[] = [],
 ): IntegrationConfig[] {
 	const values = [...integrations];
-	const defaults = createDefaultIntegrations();
+	const defaults = createDefaultIntegrations(plugins);
 	for (const seed of defaults.reverse()) {
 		if (
 			!values.some(

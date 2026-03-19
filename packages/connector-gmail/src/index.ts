@@ -1,16 +1,26 @@
+import { randomUUID } from "node:crypto";
+
 import type {
 	Connector,
+	ConnectorPlugin,
 	ConnectorSyncRequest,
 	ConnectorSyncResult,
 	GmailSyncFilter,
 	GoogleAccessTokenProvider,
 	GoogleOAuthCredentials,
 	HealthCheck,
+	IntegrationConfig,
 	SourceSnapshot,
 } from "@syncdown/core";
 import {
 	assertGoogleGrantedScopes,
 	createGoogleAccessTokenProvider,
+	DEFAULT_GOOGLE_CONNECTION_ID,
+	DEFAULT_GOOGLE_OAUTH_APP_ID,
+	defineConnectorPlugin,
+	GOOGLE_SECRET_NAMES,
+	getGoogleConnectionSecretNames,
+	getGoogleOAuthAppSecretNames,
 } from "@syncdown/core";
 
 const HISTORY_ID_INVALID_REASON = "invalid_history_id";
@@ -750,6 +760,9 @@ class GmailConnector implements Connector {
 			kind: "provider-oauth",
 			providerId: "google",
 			requiredScopes: GMAIL_REQUIRED_SCOPES,
+			connectionId: DEFAULT_GOOGLE_CONNECTION_ID,
+			connectionKind: "google-account",
+			label: "Google OAuth",
 		},
 	] as const;
 	private static readonly DEFAULT_FETCH_CONCURRENCY = 10;
@@ -1008,10 +1021,313 @@ class GmailConnector implements Connector {
 	}
 }
 
+function normalizeGmailConnection(
+	entry: Partial<{
+		id: string;
+		kind: string;
+		label: string;
+		oauthAppId?: string;
+		accountEmail?: string;
+	}>,
+) {
+	if (
+		entry.kind !== "google-account" ||
+		typeof entry.id !== "string" ||
+		typeof entry.label !== "string" ||
+		typeof entry.oauthAppId !== "string"
+	) {
+		return [];
+	}
+
+	return [
+		{
+			id: entry.id,
+			kind: "google-account" as const,
+			label: entry.label,
+			oauthAppId: entry.oauthAppId,
+			accountEmail:
+				typeof entry.accountEmail === "string" ? entry.accountEmail : undefined,
+		},
+	];
+}
+
+function normalizeGmailIntegration(entry: Partial<IntegrationConfig>) {
+	if (
+		entry.connectorId !== "gmail" ||
+		typeof entry.id !== "string" ||
+		typeof entry.connectionId !== "string" ||
+		typeof entry.label !== "string" ||
+		typeof entry.enabled !== "boolean" ||
+		(entry.interval !== "5m" &&
+			entry.interval !== "15m" &&
+			entry.interval !== "1h" &&
+			entry.interval !== "6h" &&
+			entry.interval !== "24h")
+	) {
+		return [];
+	}
+
+	const config = entry.config as
+		| { fetchConcurrency?: unknown; syncFilter?: unknown }
+		| undefined;
+	const syncFilter: GmailSyncFilter =
+		config?.syncFilter === "primary-important"
+			? "primary-important"
+			: "primary";
+	return [
+		{
+			id: entry.id,
+			connectorId: "gmail" as const,
+			connectionId: entry.connectionId,
+			label: entry.label,
+			enabled: entry.enabled,
+			interval: entry.interval,
+			config: {
+				fetchConcurrency:
+					typeof config?.fetchConcurrency === "number"
+						? config.fetchConcurrency
+						: 10,
+				syncFilter,
+			},
+		},
+	];
+}
+
+export function createGmailConnectorPlugin(
+	options: CreateGmailConnectorOptions = {},
+): ConnectorPlugin {
+	const runtime = new GmailConnector(
+		options.adapter ?? new OfficialGmailAdapter(),
+	);
+	const setupMethods = [
+		{
+			kind: "provider-oauth" as const,
+			providerId: "google" as const,
+			requiredScopes: [...GMAIL_REQUIRED_SCOPES],
+			connectionId: DEFAULT_GOOGLE_CONNECTION_ID,
+			connectionKind: "google-account",
+			label: "Google OAuth",
+		},
+	];
+
+	return defineConnectorPlugin({
+		id: runtime.id,
+		label: runtime.label,
+		setupMethods,
+		validate: runtime.validate.bind(runtime),
+		sync: runtime.sync.bind(runtime),
+		manifest: {
+			id: runtime.id,
+			label: runtime.label,
+			setupMethods,
+			cliAliases: [
+				{
+					key: "gmail.enabled",
+					async setValue(context, rawValue) {
+						if (rawValue !== "true" && rawValue !== "false") {
+							throw new Error("gmail.enabled must be `true` or `false`.");
+						}
+						const integration = context.config.integrations.find(
+							(candidate) => candidate.connectorId === "gmail",
+						);
+						if (!integration) {
+							throw new Error("Missing default Gmail integration.");
+						}
+						integration.enabled = rawValue === "true";
+						return `Set gmail.enabled=${integration.enabled}`;
+					},
+				},
+				{
+					key: "gmail.interval",
+					async setValue(context, rawValue) {
+						if (
+							rawValue !== "5m" &&
+							rawValue !== "15m" &&
+							rawValue !== "1h" &&
+							rawValue !== "6h" &&
+							rawValue !== "24h"
+						) {
+							throw new Error(
+								"gmail.interval must be one of: 5m, 15m, 1h, 6h, 24h",
+							);
+						}
+						const integration = context.config.integrations.find(
+							(candidate) => candidate.connectorId === "gmail",
+						);
+						if (!integration) {
+							throw new Error("Missing default Gmail integration.");
+						}
+						integration.interval = rawValue;
+						return `Set gmail.interval=${integration.interval}`;
+					},
+				},
+				{
+					key: "gmail.fetchConcurrency",
+					async setValue(context, rawValue) {
+						const parsed = Number.parseInt(rawValue.trim(), 10);
+						if (!Number.isInteger(parsed) || parsed <= 0) {
+							throw new Error(
+								"gmail.fetchConcurrency must be a positive integer.",
+							);
+						}
+						const integration = context.config.integrations.find(
+							(candidate) => candidate.connectorId === "gmail",
+						);
+						if (!integration || integration.connectorId !== "gmail") {
+							throw new Error("Missing default Gmail integration.");
+						}
+						integration.config.fetchConcurrency = parsed;
+						return `Set gmail.fetchConcurrency=${integration.config.fetchConcurrency}`;
+					},
+				},
+				{
+					key: "gmail.syncFilter",
+					async setValue(context, rawValue) {
+						if (rawValue !== "primary" && rawValue !== "primary-important") {
+							throw new Error(
+								"gmail.syncFilter must be one of: primary, primary-important.",
+							);
+						}
+						const integration = context.config.integrations.find(
+							(candidate) => candidate.connectorId === "gmail",
+						);
+						if (!integration || integration.connectorId !== "gmail") {
+							throw new Error("Missing default Gmail integration.");
+						}
+						integration.config.syncFilter = rawValue;
+						return `Set gmail.syncFilter=${integration.config.syncFilter}`;
+					},
+				},
+				{
+					key: GOOGLE_SECRET_NAMES.clientId,
+					secret: true,
+					async setValue(context, rawValue) {
+						const value = rawValue.trim();
+						if (!value) {
+							throw new Error(
+								`${GOOGLE_SECRET_NAMES.clientId} cannot be empty.`,
+							);
+						}
+						await context.secrets.setSecret(
+							getGoogleOAuthAppSecretNames(DEFAULT_GOOGLE_OAUTH_APP_ID)
+								.clientId,
+							value,
+							context.paths,
+						);
+						return `Stored ${GOOGLE_SECRET_NAMES.clientId} in encrypted secrets store.`;
+					},
+					async unsetValue(context) {
+						await context.secrets.deleteSecret(
+							getGoogleOAuthAppSecretNames(DEFAULT_GOOGLE_OAUTH_APP_ID)
+								.clientId,
+							context.paths,
+						);
+						return `Removed ${GOOGLE_SECRET_NAMES.clientId} from encrypted secrets store.`;
+					},
+				},
+				{
+					key: GOOGLE_SECRET_NAMES.clientSecret,
+					secret: true,
+					async setValue(context, rawValue) {
+						const value = rawValue.trim();
+						if (!value) {
+							throw new Error(
+								`${GOOGLE_SECRET_NAMES.clientSecret} cannot be empty.`,
+							);
+						}
+						await context.secrets.setSecret(
+							getGoogleOAuthAppSecretNames(DEFAULT_GOOGLE_OAUTH_APP_ID)
+								.clientSecret,
+							value,
+							context.paths,
+						);
+						return `Stored ${GOOGLE_SECRET_NAMES.clientSecret} in encrypted secrets store.`;
+					},
+					async unsetValue(context) {
+						await context.secrets.deleteSecret(
+							getGoogleOAuthAppSecretNames(DEFAULT_GOOGLE_OAUTH_APP_ID)
+								.clientSecret,
+							context.paths,
+						);
+						return `Removed ${GOOGLE_SECRET_NAMES.clientSecret} from encrypted secrets store.`;
+					},
+				},
+				{
+					key: GOOGLE_SECRET_NAMES.refreshToken,
+					secret: true,
+					async setValue(context, rawValue) {
+						const value = rawValue.trim();
+						if (!value) {
+							throw new Error(
+								`${GOOGLE_SECRET_NAMES.refreshToken} cannot be empty.`,
+							);
+						}
+						await context.secrets.setSecret(
+							getGoogleConnectionSecretNames(DEFAULT_GOOGLE_CONNECTION_ID)
+								.refreshToken,
+							value,
+							context.paths,
+						);
+						return `Stored ${GOOGLE_SECRET_NAMES.refreshToken} in encrypted secrets store.`;
+					},
+					async unsetValue(context) {
+						await context.secrets.deleteSecret(
+							getGoogleConnectionSecretNames(DEFAULT_GOOGLE_CONNECTION_ID)
+								.refreshToken,
+							context.paths,
+						);
+						return `Removed ${GOOGLE_SECRET_NAMES.refreshToken} from encrypted secrets store.`;
+					},
+				},
+			],
+		},
+		render: {
+			version: "1",
+		},
+		seedOAuthApps() {
+			return [
+				{
+					id: DEFAULT_GOOGLE_OAUTH_APP_ID,
+					providerId: "google",
+					label: "Default Google OAuth App",
+				},
+			];
+		},
+		seedConnections() {
+			return [
+				{
+					id: DEFAULT_GOOGLE_CONNECTION_ID,
+					kind: "google-account",
+					label: "Default Google Account",
+					oauthAppId: DEFAULT_GOOGLE_OAUTH_APP_ID,
+				},
+			];
+		},
+		seedIntegrations() {
+			return [
+				{
+					id: randomUUID(),
+					connectorId: "gmail",
+					connectionId: DEFAULT_GOOGLE_CONNECTION_ID,
+					label: "Gmail",
+					enabled: false,
+					interval: "1h",
+					config: {
+						fetchConcurrency: 10,
+						syncFilter: "primary",
+					},
+				},
+			];
+		},
+		normalizeConnection: normalizeGmailConnection,
+		normalizeIntegration: normalizeGmailIntegration,
+	});
+}
+
 export function createGmailConnector(
 	options: CreateGmailConnectorOptions = {},
 ): Connector {
-	return new GmailConnector(options.adapter ?? new OfficialGmailAdapter());
+	return createGmailConnectorPlugin(options);
 }
 
 export {

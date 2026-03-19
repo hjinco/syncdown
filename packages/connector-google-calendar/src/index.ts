@@ -1,15 +1,22 @@
+import { randomUUID } from "node:crypto";
+
 import type {
 	Connector,
+	ConnectorPlugin,
 	ConnectorSyncRequest,
 	ConnectorSyncResult,
 	GoogleAccessTokenProvider,
 	GoogleOAuthCredentials,
 	HealthCheck,
+	IntegrationConfig,
 	SourceSnapshot,
 } from "@syncdown/core";
 import {
 	assertGoogleGrantedScopes,
 	createGoogleAccessTokenProvider,
+	DEFAULT_GOOGLE_CONNECTION_ID,
+	DEFAULT_GOOGLE_OAUTH_APP_ID,
+	defineConnectorPlugin,
 } from "@syncdown/core";
 
 const GOOGLE_CALENDAR_API_BASE_URL = "https://www.googleapis.com/calendar/v3/";
@@ -598,6 +605,9 @@ class GoogleCalendarConnector implements Connector {
 			kind: "provider-oauth",
 			providerId: "google",
 			requiredScopes: GOOGLE_CALENDAR_REQUIRED_SCOPES,
+			connectionId: DEFAULT_GOOGLE_CONNECTION_ID,
+			connectionKind: "google-account",
+			label: "Google OAuth",
 		},
 	] as const;
 
@@ -777,10 +787,213 @@ class GoogleCalendarConnector implements Connector {
 	}
 }
 
+function normalizeGoogleCalendarConnection(
+	entry: Partial<{
+		id: string;
+		kind: string;
+		label: string;
+		oauthAppId?: string;
+		accountEmail?: string;
+	}>,
+) {
+	if (
+		entry.kind !== "google-account" ||
+		typeof entry.id !== "string" ||
+		typeof entry.label !== "string" ||
+		typeof entry.oauthAppId !== "string"
+	) {
+		return [];
+	}
+
+	return [
+		{
+			id: entry.id,
+			kind: "google-account" as const,
+			label: entry.label,
+			oauthAppId: entry.oauthAppId,
+			accountEmail:
+				typeof entry.accountEmail === "string" ? entry.accountEmail : undefined,
+		},
+	];
+}
+
+function normalizeGoogleCalendarIntegration(entry: Partial<IntegrationConfig>) {
+	if (
+		entry.connectorId !== "google-calendar" ||
+		typeof entry.id !== "string" ||
+		typeof entry.connectionId !== "string" ||
+		typeof entry.label !== "string" ||
+		typeof entry.enabled !== "boolean" ||
+		(entry.interval !== "5m" &&
+			entry.interval !== "15m" &&
+			entry.interval !== "1h" &&
+			entry.interval !== "6h" &&
+			entry.interval !== "24h")
+	) {
+		return [];
+	}
+
+	const config = entry.config as { selectedCalendarIds?: unknown } | undefined;
+	return [
+		{
+			id: entry.id,
+			connectorId: "google-calendar" as const,
+			connectionId: entry.connectionId,
+			label: entry.label,
+			enabled: entry.enabled,
+			interval: entry.interval,
+			config: {
+				selectedCalendarIds: Array.isArray(config?.selectedCalendarIds)
+					? [
+							...new Set(
+								config.selectedCalendarIds.filter(
+									(value): value is string =>
+										typeof value === "string" && value.trim().length > 0,
+								),
+							),
+						]
+					: [],
+			},
+		},
+	];
+}
+
+export function createGoogleCalendarConnectorPlugin(
+	options: CreateGoogleCalendarConnectorOptions = {},
+): ConnectorPlugin {
+	const runtime = new GoogleCalendarConnector(
+		options.adapter ?? createGoogleCalendarAdapter(),
+	);
+	const setupMethods = [
+		{
+			kind: "provider-oauth" as const,
+			providerId: "google" as const,
+			requiredScopes: [...GOOGLE_CALENDAR_REQUIRED_SCOPES],
+			connectionId: DEFAULT_GOOGLE_CONNECTION_ID,
+			connectionKind: "google-account",
+			label: "Google OAuth",
+		},
+	];
+
+	return defineConnectorPlugin({
+		id: runtime.id,
+		label: runtime.label,
+		setupMethods,
+		validate: runtime.validate.bind(runtime),
+		sync: runtime.sync.bind(runtime),
+		manifest: {
+			id: runtime.id,
+			label: runtime.label,
+			setupMethods,
+			cliAliases: [
+				{
+					key: "googleCalendar.enabled",
+					async setValue(context, rawValue) {
+						if (rawValue !== "true" && rawValue !== "false") {
+							throw new Error(
+								"googleCalendar.enabled must be `true` or `false`.",
+							);
+						}
+						const integration = context.config.integrations.find(
+							(candidate) => candidate.connectorId === "google-calendar",
+						);
+						if (!integration) {
+							throw new Error("Missing default Google Calendar integration.");
+						}
+						integration.enabled = rawValue === "true";
+						return `Set googleCalendar.enabled=${integration.enabled}`;
+					},
+				},
+				{
+					key: "googleCalendar.interval",
+					async setValue(context, rawValue) {
+						if (
+							rawValue !== "5m" &&
+							rawValue !== "15m" &&
+							rawValue !== "1h" &&
+							rawValue !== "6h" &&
+							rawValue !== "24h"
+						) {
+							throw new Error(
+								"googleCalendar.interval must be one of: 5m, 15m, 1h, 6h, 24h",
+							);
+						}
+						const integration = context.config.integrations.find(
+							(candidate) => candidate.connectorId === "google-calendar",
+						);
+						if (!integration) {
+							throw new Error("Missing default Google Calendar integration.");
+						}
+						integration.interval = rawValue;
+						return `Set googleCalendar.interval=${integration.interval}`;
+					},
+				},
+				{
+					key: "googleCalendar.selectedCalendarIds",
+					async setValue(context, rawValue) {
+						const integration = context.config.integrations.find(
+							(candidate) => candidate.connectorId === "google-calendar",
+						);
+						if (!integration || integration.connectorId !== "google-calendar") {
+							throw new Error("Missing default Google Calendar integration.");
+						}
+						integration.config.selectedCalendarIds = [
+							...new Set(
+								rawValue
+									.split(",")
+									.map((value) => value.trim())
+									.filter(Boolean),
+							),
+						];
+						return `Set googleCalendar.selectedCalendarIds=${integration.config.selectedCalendarIds.join(",")}`;
+					},
+				},
+			],
+		},
+		render: {
+			version: "1",
+		},
+		seedOAuthApps() {
+			return [
+				{
+					id: DEFAULT_GOOGLE_OAUTH_APP_ID,
+					providerId: "google",
+					label: "Default Google OAuth App",
+				},
+			];
+		},
+		seedConnections() {
+			return [
+				{
+					id: DEFAULT_GOOGLE_CONNECTION_ID,
+					kind: "google-account",
+					label: "Default Google Account",
+					oauthAppId: DEFAULT_GOOGLE_OAUTH_APP_ID,
+				},
+			];
+		},
+		seedIntegrations() {
+			return [
+				{
+					id: randomUUID(),
+					connectorId: "google-calendar",
+					connectionId: DEFAULT_GOOGLE_CONNECTION_ID,
+					label: "Google Calendar",
+					enabled: false,
+					interval: "1h",
+					config: {
+						selectedCalendarIds: [],
+					},
+				},
+			];
+		},
+		normalizeConnection: normalizeGoogleCalendarConnection,
+		normalizeIntegration: normalizeGoogleCalendarIntegration,
+	});
+}
+
 export function createGoogleCalendarConnector(
 	options: CreateGoogleCalendarConnectorOptions = {},
 ): Connector {
-	return new GoogleCalendarConnector(
-		options.adapter ?? createGoogleCalendarAdapter(),
-	);
+	return createGoogleCalendarConnectorPlugin(options);
 }
