@@ -1,1 +1,2 @@
 - After modifying any `ts` or `json` file, always run `bun lint:fix`.
+- After modifying any `ts` file, always run `bun typecheck`.
