@@ -557,15 +557,16 @@ function getGmailSyncFilter(request: ConnectorSyncRequest): GmailSyncFilter {
 		);
 	}
 
-	return request.integration.config.syncFilter === "primary-important"
-		? "primary-important"
-		: "primary";
+	const filter = request.integration.config.syncFilter;
+	if (filter === "primary-important") return "primary-important";
+	if (filter === "inbox") return "inbox";
+	return "primary";
 }
 
 function toSearchQuery(syncFilter: GmailSyncFilter): string {
-	return syncFilter === "primary-important"
-		? "category:primary label:important"
-		: "category:primary";
+	if (syncFilter === "primary-important") return "category:primary label:important";
+	if (syncFilter === "inbox") return "in:inbox";
+	return "category:primary";
 }
 
 function hasLabel(message: GmailMessage, label: string): boolean {
@@ -576,7 +577,11 @@ function isMessageEligible(
 	message: GmailMessage,
 	syncFilter: GmailSyncFilter,
 ): boolean {
-	if (!hasLabel(message, "INBOX") || !hasLabel(message, "CATEGORY_PERSONAL")) {
+	if (!hasLabel(message, "INBOX")) {
+		return false;
+	}
+
+	if (syncFilter !== "inbox" && !hasLabel(message, "CATEGORY_PERSONAL")) {
 		return false;
 	}
 
@@ -588,9 +593,9 @@ function isMessageEligible(
 }
 
 function formatRemovalReason(syncFilter: GmailSyncFilter): string {
-	return syncFilter === "primary-important"
-		? "Gmail message removed from the active primary+important filter during sync"
-		: "Gmail message removed from the active primary filter during sync";
+	if (syncFilter === "primary-important") return "Gmail message removed from the active primary+important filter during sync";
+	if (syncFilter === "inbox") return "Gmail message removed from the active inbox filter during sync";
+	return "Gmail message removed from the active primary filter during sync";
 }
 
 function encodeCursor(
@@ -623,7 +628,8 @@ function decodeCursor(
 
 		if (
 			parsed.syncFilter !== "primary" &&
-			parsed.syncFilter !== "primary-important"
+			parsed.syncFilter !== "primary-important" &&
+			parsed.syncFilter !== "inbox"
 		) {
 			return { historyId: null, resetReason: "legacy" };
 		}
@@ -1073,7 +1079,9 @@ function normalizeGmailIntegration(entry: Partial<IntegrationConfig>) {
 	const syncFilter: GmailSyncFilter =
 		config?.syncFilter === "primary-important"
 			? "primary-important"
-			: "primary";
+			: config?.syncFilter === "inbox"
+				? "inbox"
+				: "primary";
 	return [
 		{
 			id: entry.id,
@@ -1183,9 +1191,9 @@ export function createGmailConnectorPlugin(
 				{
 					key: "gmail.syncFilter",
 					async setValue(context, rawValue) {
-						if (rawValue !== "primary" && rawValue !== "primary-important") {
+						if (rawValue !== "primary" && rawValue !== "primary-important" && rawValue !== "inbox") {
 							throw new Error(
-								"gmail.syncFilter must be one of: primary, primary-important.",
+								"gmail.syncFilter must be one of: primary, primary-important, inbox.",
 							);
 						}
 						const integration = context.config.integrations.find(

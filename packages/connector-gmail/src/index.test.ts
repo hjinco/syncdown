@@ -135,7 +135,7 @@ function createRequest(
 	_adapter: GmailAdapter,
 	options: {
 		since?: string | null;
-		syncFilter?: "primary" | "primary-important";
+		syncFilter?: "primary" | "primary-important" | "inbox";
 		secrets?: SecretsStore;
 		resolvedAuth?: GoogleResolvedAuth | null;
 		persistSource?: (source: SourceSnapshot) => Promise<void>;
@@ -969,4 +969,119 @@ test("html stripping handles common markup cleanup", () => {
 	expect(stripHtml("<p>Hello<br>world</p><script>ignore()</script>")).toBe(
 		"Hello\nworld",
 	);
+});
+
+test("inbox sync filter passes syncFilter=inbox to listInboxMessageIds", async () => {
+	let requestedFilter: string | undefined;
+	const adapter = createAdapter({
+		async listInboxMessageIds(_credentials, syncFilter): Promise<string[]> {
+			requestedFilter = syncFilter;
+			return ["m1"];
+		},
+	});
+	const connector = createGmailConnector({ adapter });
+	await connector.sync(createRequest(adapter, { syncFilter: "inbox" }));
+
+	expect(requestedFilter).toBe("inbox");
+});
+
+test("inbox sync filter persists messages with INBOX but without CATEGORY_PERSONAL", async () => {
+	const persisted: string[] = [];
+	const deleted: string[] = [];
+	const adapter = createAdapter({
+		async listInboxMessageIds(): Promise<string[]> {
+			return ["m1", "m2"];
+		},
+		async getMessage(_credentials, messageId): Promise<GmailMessage | null> {
+			return messageId === "m1"
+				? createMessage("m1", { labelIds: ["INBOX", "CATEGORY_PROMOTIONS"] })
+				: createMessage("m2", { labelIds: ["INBOX", "CATEGORY_PERSONAL"] });
+		},
+	});
+	const connector = createGmailConnector({ adapter });
+
+	await connector.sync(
+		createRequest(adapter, {
+			syncFilter: "inbox",
+			persistSource: async (source) => {
+				persisted.push(source.sourceId);
+			},
+			deleteSource: async (sourceId) => {
+				deleted.push(sourceId);
+			},
+		}),
+	);
+
+	expect(persisted).toEqual(["m1", "m2"]);
+	expect(deleted).toEqual([]);
+});
+
+test("inbox sync filter deletes messages without INBOX label", async () => {
+	const persisted: string[] = [];
+	const deleted: string[] = [];
+	const writes: string[] = [];
+	const adapter = createAdapter({
+		async listHistory(): Promise<GmailHistoryResult> {
+			return {
+				history: [{ labelsRemoved: [{ message: { id: "m1" } }] }],
+			};
+		},
+		async getMessage(): Promise<GmailMessage | null> {
+			return createMessage("m1", { labelIds: ["CATEGORY_PROMOTIONS"] });
+		},
+	});
+	const connector = createGmailConnector({ adapter });
+
+	await connector.sync(
+		createRequest(adapter, {
+			since: JSON.stringify({ historyId: "250", syncFilter: "inbox" }),
+			syncFilter: "inbox",
+			persistSource: async (source) => {
+				persisted.push(source.sourceId);
+			},
+			deleteSource: async (sourceId) => {
+				deleted.push(sourceId);
+			},
+			io: {
+				write(line) {
+					writes.push(line);
+				},
+				error() {},
+			},
+		}),
+	);
+
+	expect(persisted).toEqual([]);
+	expect(deleted).toEqual(["m1"]);
+	expect(writes).toContain(
+		"Gmail message removed from the active inbox filter during sync: m1",
+	);
+});
+
+test("inbox cursor is accepted as valid and not treated as legacy", async () => {
+	let resetCalls = 0;
+	let inboxCalls = 0;
+	const adapter = createAdapter({
+		async listHistory(): Promise<GmailHistoryResult> {
+			return { history: [] };
+		},
+		async listInboxMessageIds(): Promise<string[]> {
+			inboxCalls += 1;
+			return [];
+		},
+	});
+	const connector = createGmailConnector({ adapter });
+
+	await connector.sync(
+		createRequest(adapter, {
+			since: JSON.stringify({ historyId: "250", syncFilter: "inbox" }),
+			syncFilter: "inbox",
+			resetIntegrationState: async () => {
+				resetCalls += 1;
+			},
+		}),
+	);
+
+	expect(resetCalls).toBe(0);
+	expect(inboxCalls).toBe(0);
 });

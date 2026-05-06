@@ -126,7 +126,7 @@ export type ConnectionConfig =
 	| NotionOAuthConnectionConfig
 	| AppleNotesLocalConnectionConfig;
 
-export type GmailSyncFilter = "primary" | "primary-important";
+export type GmailSyncFilter = "primary" | "primary-important" | "inbox";
 
 export interface GmailIntegrationSettings {
 	fetchConcurrency?: number;

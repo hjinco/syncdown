@@ -593,7 +593,7 @@ test("config set rejects invalid gmail.syncFilter values", async () => {
 
 		expect(exitCode).toBe(EXIT_CODES.CONFIG_ERROR);
 		expect(errors).toContain(
-			"gmail.syncFilter must be one of: primary, primary-important.",
+			"gmail.syncFilter must be one of: primary, primary-important, inbox.",
 		);
 	});
 });
