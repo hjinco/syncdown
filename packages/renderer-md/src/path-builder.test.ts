@@ -99,8 +99,30 @@ test("buildRelativePath truncates long titles to keep filename within 255 chars"
 
 	const result = buildRelativePath(document);
 	const fileName = result.split("/").at(-1)!;
-	expect(fileName.length).toBeLessThanOrEqual(255);
+	expect(Buffer.byteLength(fileName)).toBeLessThanOrEqual(255);
 	expect(fileName.endsWith(`-${longEventId}.md`)).toBe(true);
+});
+
+test("buildRelativePath truncates long emoji/CJK titles to keep filename within 255 bytes", () => {
+	// Each emoji is 4 bytes in UTF-8; a long title of them can exceed 255 bytes
+	// even when the character count is under 255.
+	const longTitle = "🗓️".repeat(60);
+	const document = createSnapshot({
+		connectorId: "google-calendar",
+		sourceId: "primary:abc123",
+		entityType: "event",
+		title: longTitle,
+		pathHint: { kind: "calendar-event", calendarName: "Primary Calendar" },
+		metadata: {
+			createdAt: "2024-01-01T00:00:00.000Z",
+			calendarEventId: "abc123",
+		},
+	});
+
+	const result = buildRelativePath(document);
+	const fileName = result.split("/").at(-1)!;
+	expect(Buffer.byteLength(fileName)).toBeLessThanOrEqual(255);
+	expect(fileName.endsWith("-abc123.md")).toBe(true);
 });
 
 test("buildRelativePath routes non-database notion pages under pages folders", () => {

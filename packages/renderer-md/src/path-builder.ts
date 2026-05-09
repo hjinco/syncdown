@@ -65,15 +65,18 @@ function getFileIdentifier(document: SourceSnapshot): string {
 
 const MAX_FILENAME_LENGTH = 255;
 
+function truncateToBytes(str: string, maxBytes: number): string {
+	if (maxBytes <= 0) return "";
+	if (Buffer.byteLength(str) <= maxBytes) return str;
+	return Buffer.from(str, "utf8").subarray(0, maxBytes).toString("utf8").replace(/�+$/, "");
+}
+
 function buildFileName(document: SourceSnapshot): string {
 	const identifier = getFileIdentifier(document);
 	const suffix = `-${identifier}.md`;
 	const rawSlug = document.slug || slugifySegment(document.title);
-	const maxSlugLength = MAX_FILENAME_LENGTH - suffix.length;
-	const slug =
-		rawSlug.length > maxSlugLength
-			? rawSlug.slice(0, maxSlugLength).replace(/-+$/, "")
-			: rawSlug;
+	const maxSlugBytes = Math.max(0, MAX_FILENAME_LENGTH - Buffer.byteLength(suffix));
+	const slug = truncateToBytes(rawSlug, maxSlugBytes).replace(/-+$/, "");
 	return `${slug}${suffix}`;
 }
 
