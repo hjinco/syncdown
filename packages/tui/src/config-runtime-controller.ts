@@ -306,6 +306,23 @@ export function createConfigRuntimeController(
 						{ resetState: true },
 					);
 					setSyncRunNotice("Google Calendar full resync completed.");
+				} else if (selection === "runGoogleContacts") {
+					await deps.request.session.runNow({
+						kind: "integration",
+						integrationId: getDraftIntegration(deps.draft, "google-contacts")
+							.id,
+					});
+					setSyncRunNotice("Google Contacts run completed.");
+				} else if (selection === "runGoogleContactsReset") {
+					await deps.request.session.runNow(
+						{
+							kind: "integration",
+							integrationId: getDraftIntegration(deps.draft, "google-contacts")
+								.id,
+						},
+						{ resetState: true },
+					);
+					setSyncRunNotice("Google Contacts full resync completed.");
 				} else if (selection === "runAppleNotes") {
 					await deps.request.session.runNow({
 						kind: "integration",

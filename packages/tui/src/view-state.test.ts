@@ -478,6 +478,26 @@ test("connectors and schedule expose google calendar", () => {
 	).toContain("Google Calendar interval: 1h");
 });
 
+test("connectors and schedule expose google contacts", () => {
+	const draft = createDraftState(createConfig(), {
+		notionTokenStored: true,
+		googleClientIdStored: true,
+		googleClientSecretStored: true,
+		googleRefreshTokenStored: true,
+	});
+
+	expect(
+		getRouteOptions({ id: "connectors", selectedIndex: 0 }, draft).map(
+			(option) => option.name,
+		),
+	).toContain("Google Contacts");
+	expect(
+		getRouteOptions({ id: "schedule", selectedIndex: 0 }, draft).map(
+			(option) => option.name,
+		),
+	).toContain("Google Contacts interval: 1h");
+});
+
 test("sync dashboard route renders status summary and actions", () => {
 	const draft = createDraftState(createConfig(), {
 		notionTokenStored: true,

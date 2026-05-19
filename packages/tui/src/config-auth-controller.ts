@@ -189,7 +189,7 @@ export function createConfigAuthController(deps: ConfigAuthControllerDeps) {
 		},
 
 		async ensureGoogleScopesForConnector(
-			connector: "gmail" | "google-calendar",
+			connector: "gmail" | "google-calendar" | "google-contacts",
 		): Promise<boolean> {
 			const credentials = await getCurrentGoogleCredentials();
 			const requiredScopes = await getRequiredGoogleScopes(connector);
@@ -432,7 +432,7 @@ export function createConfigAuthController(deps: ConfigAuthControllerDeps) {
 	}
 
 	async function getRequiredGoogleScopes(
-		connectorId: "gmail" | "google-calendar",
+		connectorId: "gmail" | "google-calendar" | "google-contacts",
 	): Promise<string[]> {
 		const snapshot = await deps.inspectApp();
 		const integrations = snapshot.integrations.map((integration) => ({
@@ -444,7 +444,9 @@ export function createConfigAuthController(deps: ConfigAuthControllerDeps) {
 						? isDraftConnectorEnabled(deps.draft, "gmail")
 						: integration.connectorId === "google-calendar"
 							? isDraftConnectorEnabled(deps.draft, "google-calendar")
-							: integration.enabled,
+							: integration.connectorId === "google-contacts"
+								? isDraftConnectorEnabled(deps.draft, "google-contacts")
+								: integration.enabled,
 		}));
 		return collectGoogleProviderScopes(integrations, {
 			includeIds: [
