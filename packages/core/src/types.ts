@@ -137,6 +137,8 @@ export interface CalendarIntegrationSettings {
 	selectedCalendarIds: string[];
 }
 
+export type ContactsIntegrationSettings = Record<string, never>;
+
 export type NotionIntegrationSettings = Record<string, never>;
 export type AppleNotesIntegrationSettings = Record<string, never>;
 
@@ -166,6 +168,10 @@ export type AppleNotesIntegrationConfig = BaseIntegrationConfig<
 	"apple-notes",
 	AppleNotesIntegrationSettings
 >;
+export type ContactsIntegrationConfig = BaseIntegrationConfig<
+	"google-contacts",
+	ContactsIntegrationSettings
+>;
 export interface GenericIntegrationConfig
 	extends BaseIntegrationConfig<string, Record<string, unknown>> {}
 
@@ -173,7 +179,8 @@ export type IntegrationConfig =
 	| NotionIntegrationConfig
 	| GmailIntegrationConfig
 	| CalendarIntegrationConfig
-	| AppleNotesIntegrationConfig;
+	| AppleNotesIntegrationConfig
+	| ContactsIntegrationConfig;
 
 export interface SyncdownConfig {
 	outputDir?: string;
@@ -203,13 +210,14 @@ export interface HealthCheck {
 }
 
 export interface DocumentPathHint {
-	kind: "page" | "database" | "message" | "calendar-event" | "note";
+	kind: "page" | "database" | "message" | "calendar-event" | "note" | "contact";
 	databaseName?: string;
 	gmailAccountEmail?: string;
 	calendarName?: string;
 	appleNotesAccount?: string;
 	appleNotesFolder?: string;
 	appleNotesFolderPath?: string[];
+	contactAccountEmail?: string;
 }
 
 export interface SourceMetadata extends Record<string, unknown> {
@@ -241,6 +249,17 @@ export interface SourceMetadata extends Record<string, unknown> {
 	appleNotesNoteId?: string;
 	appleNotesFolder?: string;
 	appleNotesFolderPath?: string[];
+	contactResourceName?: string;
+	contactAccountEmail?: string;
+	contactEmails?: string[];
+	contactPhones?: string[];
+	contactOrganizations?: string[];
+	contactTitles?: string[];
+	contactGroups?: string[];
+	contactBirthday?: string;
+	contactAddresses?: string[];
+	contactUrls?: string[];
+	contactSource?: "person" | "other-contact";
 }
 
 export interface SourceSnapshot {

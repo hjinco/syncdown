@@ -8,6 +8,7 @@ import type {
 	ConnectorDefinitionSummary,
 	ConnectorId,
 	ConnectorPlugin,
+	ContactsIntegrationConfig,
 	GmailIntegrationConfig,
 	GoogleAccountConnectionConfig,
 	IntegrationConfig,
@@ -106,6 +107,15 @@ function getFallbackIntegrations(): IntegrationConfig[] {
 			connectorId: "apple-notes",
 			connectionId: DEFAULT_APPLE_NOTES_CONNECTION_ID,
 			label: "Apple Notes",
+			enabled: false,
+			interval: "1h",
+			config: {},
+		},
+		{
+			id: randomUUID(),
+			connectorId: "google-contacts",
+			connectionId: DEFAULT_GOOGLE_CONNECTION_ID,
+			label: "Google Contacts",
 			enabled: false,
 			interval: "1h",
 			config: {},
@@ -227,7 +237,9 @@ export function getDefaultIntegration(
 }
 
 export function getDefaultConnectionId(connectorId: ConnectorId): string {
-	return connectorId === "gmail" || connectorId === "google-calendar"
+	return connectorId === "gmail" ||
+		connectorId === "google-calendar" ||
+		connectorId === "google-contacts"
 		? DEFAULT_GOOGLE_CONNECTION_ID
 		: connectorId === "apple-notes"
 			? DEFAULT_APPLE_NOTES_CONNECTION_ID
@@ -282,6 +294,12 @@ export function isAppleNotesIntegration(
 	integration: IntegrationConfig,
 ): integration is AppleNotesIntegrationConfig {
 	return integration.connectorId === "apple-notes";
+}
+
+export function isContactsIntegration(
+	integration: IntegrationConfig,
+): integration is ContactsIntegrationConfig {
+	return integration.connectorId === "google-contacts";
 }
 
 export function toConnectorDefinitions(
@@ -585,6 +603,20 @@ function normalizeLegacyIntegration(
 				connectionId:
 					candidate.connectionId ?? DEFAULT_APPLE_NOTES_CONNECTION_ID,
 				label: candidate.label ?? "Apple Notes",
+				enabled: candidate.enabled ?? false,
+				interval: candidate.interval ?? "1h",
+				config: {},
+			},
+		];
+	}
+
+	if (candidate.connectorId === "google-contacts") {
+		return [
+			{
+				id: candidate.id ?? randomUUID(),
+				connectorId: "google-contacts",
+				connectionId: candidate.connectionId ?? DEFAULT_GOOGLE_CONNECTION_ID,
+				label: candidate.label ?? "Google Contacts",
 				enabled: candidate.enabled ?? false,
 				interval: candidate.interval ?? "1h",
 				config: {},

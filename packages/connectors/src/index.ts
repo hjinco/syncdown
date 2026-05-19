@@ -1,6 +1,7 @@
 import { createAppleNotesConnectorPlugin } from "@syncdown/connector-apple-notes";
 import { createGmailConnectorPlugin } from "@syncdown/connector-gmail";
 import { createGoogleCalendarConnectorPlugin } from "@syncdown/connector-google-calendar";
+import { createGoogleContactsConnectorPlugin } from "@syncdown/connector-google-contacts";
 import { createNotionConnectorPlugin } from "@syncdown/connector-notion";
 import type { ConnectorCliAlias, ConnectorPlugin } from "@syncdown/core";
 
@@ -11,6 +12,7 @@ export function createBuiltinConnectorPlugins(
 		createNotionConnectorPlugin(),
 		createGmailConnectorPlugin(),
 		createGoogleCalendarConnectorPlugin(),
+		createGoogleContactsConnectorPlugin(),
 		...(platform === "darwin" ? [createAppleNotesConnectorPlugin()] : []),
 	];
 }
