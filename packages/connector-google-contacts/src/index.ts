@@ -18,6 +18,7 @@ import {
 	DEFAULT_GOOGLE_CONNECTION_ID,
 	DEFAULT_GOOGLE_OAUTH_APP_ID,
 	defineConnectorPlugin,
+	stableStringify,
 } from "@syncdown/core";
 
 const GOOGLE_PEOPLE_API_BASE_URL = "https://people.googleapis.com/v1/";
@@ -243,7 +244,15 @@ async function parseJsonResponse<T>(response: Response): Promise<T | null> {
 	if (!text) {
 		return null;
 	}
-	return JSON.parse(text) as T;
+	try {
+		return JSON.parse(text) as T;
+	} catch (error) {
+		const reason = error instanceof Error ? error.message : String(error);
+		throw new GoogleContactsApiError(
+			response.status,
+			`Google People API response was not valid JSON: ${reason}`,
+		);
+	}
 }
 
 class OfficialGoogleContactsAdapter implements GoogleContactsAdapter {
@@ -390,7 +399,7 @@ function computeSourceHash(
 ): string {
 	return new Bun.CryptoHasher("sha256")
 		.update(
-			JSON.stringify({
+			stableStringify({
 				connectorId: snapshot.connectorId,
 				sourceId: snapshot.sourceId,
 				title: snapshot.title,

@@ -13,6 +13,7 @@ import type {
 import {
 	DEFAULT_APPLE_NOTES_CONNECTION_ID,
 	defineConnectorPlugin,
+	stableStringify,
 } from "@syncdown/core";
 
 export interface AppleNotesNote {
@@ -236,7 +237,7 @@ function toSourceId(rawId: string): string {
 function toSourceHash(note: AppleNotesNote): string {
 	return new Bun.CryptoHasher("sha256")
 		.update(
-			JSON.stringify({
+			stableStringify({
 				title: note.title,
 				body: note.body,
 				account: note.account,

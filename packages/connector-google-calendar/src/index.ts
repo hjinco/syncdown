@@ -17,6 +17,7 @@ import {
 	DEFAULT_GOOGLE_CONNECTION_ID,
 	DEFAULT_GOOGLE_OAUTH_APP_ID,
 	defineConnectorPlugin,
+	stableStringify,
 } from "@syncdown/core";
 
 const GOOGLE_CALENDAR_API_BASE_URL = "https://www.googleapis.com/calendar/v3/";
@@ -125,7 +126,15 @@ async function parseJsonResponse<T>(response: Response): Promise<T | null> {
 		return null;
 	}
 
-	return JSON.parse(text) as T;
+	try {
+		return JSON.parse(text) as T;
+	} catch (error) {
+		const reason = error instanceof Error ? error.message : String(error);
+		throw new GoogleCalendarApiError(
+			response.status,
+			`Google Calendar API response was not valid JSON: ${reason}`,
+		);
+	}
 }
 
 class OfficialGoogleCalendarAdapter implements GoogleCalendarAdapter {
@@ -309,7 +318,7 @@ function computeSourceHash(
 ): string {
 	return new Bun.CryptoHasher("sha256")
 		.update(
-			JSON.stringify({
+			stableStringify({
 				connectorId: snapshot.connectorId,
 				sourceId: snapshot.sourceId,
 				title: snapshot.title,

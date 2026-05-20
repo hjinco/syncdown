@@ -74,6 +74,7 @@ export {
 	readNotionOAuthConnectionCredentials,
 	refreshNotionAccessToken,
 } from "./notion-auth.js";
+export { stableStringify } from "./hashing.js";
 export { defineConnectorPlugin } from "./plugin.js";
 export type {
 	AppIo,
