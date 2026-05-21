@@ -45,6 +45,10 @@ function getAppleNotesFolderSegments(document: SourceSnapshot): string[] {
 	];
 }
 
+function getContactFileIdentifier(resourceName: string): string {
+	return slugifySegment(resourceName.replace(/^people\//, ""));
+}
+
 function getFileIdentifier(document: SourceSnapshot): string {
 	if (document.pathHint.kind === "calendar-event") {
 		const eventId = document.metadata.calendarEventId;
@@ -60,6 +64,13 @@ function getFileIdentifier(document: SourceSnapshot): string {
 		}
 	}
 
+	if (document.pathHint.kind === "contact") {
+		const resourceName = document.metadata.contactResourceName;
+		if (typeof resourceName === "string" && resourceName.trim().length > 0) {
+			return getContactFileIdentifier(resourceName);
+		}
+	}
+
 	return document.sourceId;
 }
 
@@ -68,14 +79,20 @@ const MAX_FILENAME_LENGTH = 255;
 function truncateToBytes(str: string, maxBytes: number): string {
 	if (maxBytes <= 0) return "";
 	if (Buffer.byteLength(str) <= maxBytes) return str;
-	return Buffer.from(str, "utf8").subarray(0, maxBytes).toString("utf8").replace(/�+$/, "");
+	return Buffer.from(str, "utf8")
+		.subarray(0, maxBytes)
+		.toString("utf8")
+		.replace(/�+$/, "");
 }
 
 function buildFileName(document: SourceSnapshot): string {
 	const identifier = getFileIdentifier(document);
 	const suffix = `-${identifier}.md`;
 	const rawSlug = document.slug || slugifySegment(document.title);
-	const maxSlugBytes = Math.max(0, MAX_FILENAME_LENGTH - Buffer.byteLength(suffix));
+	const maxSlugBytes = Math.max(
+		0,
+		MAX_FILENAME_LENGTH - Buffer.byteLength(suffix),
+	);
 	const slug = truncateToBytes(rawSlug, maxSlugBytes).replace(/-+$/, "");
 	return `${slug}${suffix}`;
 }
@@ -138,6 +155,15 @@ export function buildRelativePath(document: SourceSnapshot): string {
 			slugifySegment(document.pathHint.databaseName),
 			fileName,
 		);
+	}
+
+	if (document.pathHint.kind === "contact") {
+		const accountSegment = slugifySegment(
+			document.pathHint.contactAccountEmail ??
+				document.metadata.contactAccountEmail ??
+				"default",
+		);
+		return path.join(document.connectorId, accountSegment, fileName);
 	}
 
 	return path.join(document.connectorId, "pages", fileName);

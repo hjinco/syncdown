@@ -13,6 +13,9 @@
 			"@syncdown/connector-google-calendar": [
 				"./packages/connector-google-calendar/src/index.ts"
 			],
+			"@syncdown/connector-google-contacts": [
+				"./packages/connector-google-contacts/src/index.ts"
+			],
 			"@syncdown/connector-notion": [
 				"./packages/connector-notion/src/index.ts"
 			],

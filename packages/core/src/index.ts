@@ -24,6 +24,7 @@ export {
 	getDefaultIntegration,
 	isAppleNotesIntegration,
 	isCalendarIntegration,
+	isContactsIntegration,
 	isGmailIntegration,
 	isGoogleAccountConnection,
 	isNotionIntegration,
@@ -73,6 +74,7 @@ export {
 	readNotionOAuthConnectionCredentials,
 	refreshNotionAccessToken,
 } from "./notion-auth.js";
+export { stableStringify } from "./hashing.js";
 export { defineConnectorPlugin } from "./plugin.js";
 export type {
 	AppIo,
@@ -102,6 +104,8 @@ export type {
 	ConnectorRenderHooks,
 	ConnectorSyncRequest,
 	ConnectorSyncResult,
+	ContactsIntegrationConfig,
+	ContactsIntegrationSettings,
 	DocumentSink,
 	GenericConnectionConfig,
 	GenericIntegrationConfig,

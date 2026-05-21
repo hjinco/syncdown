@@ -1,4 +1,5 @@
 import type { SourceSnapshot } from "@syncdown/core";
+import { stableStringify } from "@syncdown/core";
 
 import type {
 	NotionDataSource,
@@ -181,7 +182,7 @@ function sanitizeMarkdown(markdown: string): string {
 
 function hashDocumentPayload(value: unknown): string {
 	return new Bun.CryptoHasher("sha256")
-		.update(JSON.stringify(value))
+		.update(stableStringify(value))
 		.digest("hex");
 }
 

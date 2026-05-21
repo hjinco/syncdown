@@ -40,6 +40,7 @@ export type ConnectorTarget =
 	| "notion"
 	| "gmail"
 	| "google-calendar"
+	| "google-contacts"
 	| "apple-notes";
 export type ProviderTarget = "google" | "notion";
 export type SecretTarget =
@@ -427,7 +428,10 @@ export function stageGoogleConnection(
 	clientId: string,
 	clientSecret: string,
 	refreshToken: string,
-	connector: Extract<ConnectorTarget, "gmail" | "google-calendar"> = "gmail",
+	connector: Extract<
+		ConnectorTarget,
+		"gmail" | "google-calendar" | "google-contacts"
+	> = "gmail",
 ): void {
 	applySecretAction(draft, "googleClientId", "set", clientId);
 	applySecretAction(draft, "googleClientSecret", "set", clientSecret);
@@ -611,6 +615,7 @@ export function buildOverview(paths: AppPaths, draft: DraftState): string {
 	const notionStatus = getConnectorStatus(draft, "notion");
 	const gmailStatus = getConnectorStatus(draft, "gmail");
 	const googleCalendarStatus = getConnectorStatus(draft, "google-calendar");
+	const googleContactsStatus = getConnectorStatus(draft, "google-contacts");
 	const lines = [
 		`config: ${paths.configPath}`,
 		`secrets: ${paths.secretsPath}`,
@@ -618,6 +623,7 @@ export function buildOverview(paths: AppPaths, draft: DraftState): string {
 		`notion: ${notionStatus.label} | method=${getDraftNotionAuthMethod(draft)} | interval=${getDraftInterval(draft, "notion")} | enabled=${isDraftConnectorEnabled(draft, "notion") ? "yes" : "no"}`,
 		`gmail: ${gmailStatus.label} | interval=${getDraftInterval(draft, "gmail")} | enabled=${isDraftConnectorEnabled(draft, "gmail") ? "yes" : "no"}`,
 		`google-calendar: ${googleCalendarStatus.label} | interval=${getDraftInterval(draft, "google-calendar")} | selected=${getDraftSelectedGoogleCalendarIds(draft).length} | enabled=${isDraftConnectorEnabled(draft, "google-calendar") ? "yes" : "no"}`,
+		`google-contacts: ${googleContactsStatus.label} | interval=${getDraftInterval(draft, "google-contacts")} | enabled=${isDraftConnectorEnabled(draft, "google-contacts") ? "yes" : "no"}`,
 	];
 
 	if (isAppleNotesSupportedPlatform()) {

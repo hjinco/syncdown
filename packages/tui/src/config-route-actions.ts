@@ -56,7 +56,7 @@ interface ConfigRouteActionsDeps {
 	getSyncSnapshot(): SyncRuntimeSnapshot;
 	refreshView(): void;
 	ensureGoogleScopesForConnector(
-		connector: "gmail" | "google-calendar",
+		connector: "gmail" | "google-calendar" | "google-contacts",
 	): Promise<boolean>;
 	persistDraftMutation(
 		mutate: (draft: DraftState) => void,
@@ -122,6 +122,21 @@ export function createConfigRouteActions(deps: ConfigRouteActionsDeps) {
 
 			if (getDraftSelectedGoogleCalendarIds(deps.draft).length === 0) {
 				await openGoogleCalendarSelectionRoute([]);
+				return;
+			}
+
+			await enableConnector(
+				connector,
+				`Failed to enable ${getConnectorLabel(connector)}.`,
+				`${getConnectorLabel(connector)} enabled.`,
+			);
+			return;
+		}
+
+		if (connector === "google-contacts") {
+			const hasScopes =
+				await deps.ensureGoogleScopesForConnector("google-contacts");
+			if (!hasScopes) {
 				return;
 			}
 
@@ -447,6 +462,7 @@ function isConnectorTarget(selection: unknown): selection is ConnectorTarget {
 		selection === "notion" ||
 		selection === "gmail" ||
 		selection === "google-calendar" ||
+		selection === "google-contacts" ||
 		selection === "apple-notes"
 	);
 }
@@ -459,6 +475,8 @@ function getConnectorLabel(connector: ConnectorTarget): string {
 			return "Gmail";
 		case "google-calendar":
 			return "Google Calendar";
+		case "google-contacts":
+			return "Google Contacts";
 		case "apple-notes":
 			return "Apple Notes";
 		default: {

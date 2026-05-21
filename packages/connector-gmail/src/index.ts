@@ -21,6 +21,7 @@ import {
 	GOOGLE_SECRET_NAMES,
 	getGoogleConnectionSecretNames,
 	getGoogleOAuthAppSecretNames,
+	stableStringify,
 } from "@syncdown/core";
 
 const HISTORY_ID_INVALID_REASON = "invalid_history_id";
@@ -138,7 +139,15 @@ async function parseJsonResponse<T>(response: Response): Promise<T | null> {
 		return null;
 	}
 
-	return JSON.parse(text) as T;
+	try {
+		return JSON.parse(text) as T;
+	} catch (error) {
+		const reason = error instanceof Error ? error.message : String(error);
+		throw new GmailApiError(
+			response.status,
+			`Gmail API response was not valid JSON: ${reason}`,
+		);
+	}
 }
 
 class OfficialGmailAdapter implements GmailAdapter {
@@ -433,7 +442,7 @@ function computeSourceHash(
 ): string {
 	return new Bun.CryptoHasher("sha256")
 		.update(
-			JSON.stringify({
+			stableStringify({
 				connectorId: snapshot.connectorId,
 				sourceId: snapshot.sourceId,
 				title: snapshot.title,

@@ -109,6 +109,50 @@ export function buildFrontmatterFields(
 		fields.set("folder", appleNotesFolderLabel);
 	}
 
+	if (document.metadata.contactAccountEmail) {
+		fields.set("account", document.metadata.contactAccountEmail);
+	}
+
+	if (document.metadata.contactResourceName) {
+		fields.set("resource_name", document.metadata.contactResourceName);
+	}
+
+	if (document.metadata.contactEmails) {
+		fields.set("emails", document.metadata.contactEmails);
+	}
+
+	if (document.metadata.contactPhones) {
+		fields.set("phones", document.metadata.contactPhones);
+	}
+
+	if (document.metadata.contactOrganizations) {
+		fields.set("organizations", document.metadata.contactOrganizations);
+	}
+
+	if (document.metadata.contactTitles) {
+		fields.set("titles", document.metadata.contactTitles);
+	}
+
+	if (document.metadata.contactGroups) {
+		fields.set("groups", document.metadata.contactGroups);
+	}
+
+	if (document.metadata.contactBirthday) {
+		fields.set("birthday", document.metadata.contactBirthday);
+	}
+
+	if (document.metadata.contactAddresses) {
+		fields.set("addresses", document.metadata.contactAddresses);
+	}
+
+	if (document.metadata.contactUrls) {
+		fields.set("urls", document.metadata.contactUrls);
+	}
+
+	if (document.metadata.contactSource) {
+		fields.set("contact_source", document.metadata.contactSource);
+	}
+
 	return fields;
 }
 
